@@ -76,6 +76,15 @@ export async function fetchLoads() {
   return (data || []) as LoadRecord[];
 }
 
+export async function fetchOpenLoads(category?: TruckSize) {
+  const db = requireClient();
+  let query = db.from("loads").select("*").in("status", ["Broadcasting", "Accepted", "In transit"]).order("created_at", { ascending: false });
+  if (category) query = query.eq("category", category);
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data || []) as LoadRecord[];
+}
+
 export async function fetchLoad(id: string) {
   const db = requireClient();
   const { data, error } = await db.from("loads").select("*").eq("id", id).maybeSingle();
@@ -111,6 +120,23 @@ export async function updateLoad(id: string, updates: Partial<LoadRecord>) {
   return data as LoadRecord;
 }
 
+export async function acceptLoad(load: LoadRecord, driver: { name: string; phone: string }) {
+  return updateLoad(load.id, {
+    status: "Accepted",
+    driver: driver.name,
+    driver_phone: driver.phone,
+  });
+}
+
+export async function completeLoad(load: LoadRecord) {
+  const commission = Math.round(Number(load.offer || 0) * 0.1);
+  const updated = await updateLoad(load.id, { status: "Completed" });
+  if (load.driver_phone) {
+    await createWalletTransaction({ phone: load.driver_phone, type: "commission", amount: -commission, note: `10% commission for ${load.id}`, load_id: load.id }).catch(() => null);
+  }
+  return updated;
+}
+
 export async function createTruck(truck: TruckRecord) {
   const db = requireClient();
   const { data, error } = await db.from("trucks").insert({ wallet: 0, rating: 4.8, online: false, status: "Pending review", ...truck }).select().single();
@@ -127,7 +153,13 @@ export async function updateTruck(id: string, updates: Partial<TruckRecord>) {
 
 export async function upsertProfile(profile: { role: "customer" | "driver" | "admin"; name: string; phone: string; email?: string; business?: string; address?: string }) {
   const db = requireClient();
-  const { data, error } = await db.from("profiles").upsert(profile, { onConflict: "phone" }).select().single();
+  const existing = await fetchProfile(profile.phone);
+  if (existing?.id) {
+    const { data, error } = await db.from("profiles").update(profile).eq("phone", profile.phone).select().single();
+    if (error) throw error;
+    return data as ProfileRecord;
+  }
+  const { data, error } = await db.from("profiles").insert(profile).select().single();
   if (error) throw error;
   return data as ProfileRecord;
 }

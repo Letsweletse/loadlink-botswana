@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Search, Truck, MapPin, Package, User, Plus, CheckCircle2, Clock, X } from 'lucide-react';
+import { Search, Truck, Plus, CheckCircle2, Clock, X } from 'lucide-react';
 import './mobile.css';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
@@ -41,7 +41,6 @@ function App() {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('all');
   const [loads, setLoads] = useState([]);
-  const [trucks, setTrucks] = useState([]);
   const [selected, setSelected] = useState(null);
   const [toast, setToast] = useState('');
   const [form, setForm] = useState({ customer: '', phone: '', pickup: '', dropoff: '', category: 'mini', load: '', km: 12, boost: 0 });
@@ -52,11 +51,8 @@ function App() {
   async function loadData() {
     if (!configured) return;
     try {
-      const [l, t] = await Promise.all([
-        api('loads', {}, '?select=*&order=created_at.desc'),
-        api('trucks', {}, '?select=*&order=created_at.desc'),
-      ]);
-      setLoads(l || []); setTrucks(t || []);
+      const data = await api('loads', {}, '?select=*&order=created_at.desc');
+      setLoads(data || []);
     } catch (e) { show('Connection issue. Please refresh.'); }
   }
 
@@ -86,12 +82,12 @@ function App() {
   const value = loads.reduce((sum, l) => sum + Number(l.offer || 0), 0);
 
   return <div className="app">
-    <header className="top"><div className="brand"><div className="mark">LL</div><div><b>LoadLink</b><span>Botswana logistics</span></div></div><nav>{['home','book','loads','drivers','profile'].map(x => <button key={x} className={tab===x?'on':''} onClick={()=>setTab(x)}>{x}</button>)}</nav></header>
+    <header className="top"><div className="brand"><div className="mark">LL</div><div><b>LoadLink</b><span>Clean Vite build</span></div></div><nav>{['home','book','loads','drivers','profile'].map(x => <button key={x} className={tab===x?'on':''} onClick={()=>setTab(x)}>{x}</button>)}</nav></header>
     <main>
-      {tab === 'home' && <section className="panel hero"><span className="pill">{configured ? 'Live database connected' : 'Setup mode'}</span><h1>Move goods with verified vans and trucks.</h1><p>Book transport across Botswana and SACU with clear fares, driver matching and live job records.</p><div className="stats"><Stat icon={<Truck/>} label="Active" value={active}/><Stat icon={<Clock/>} label="Pending" value={loads.length}/><Stat icon={<CheckCircle2/>} label="Completed" value={completed}/></div><button className="primary" onClick={()=>setTab('book')}><Plus size={16}/> New booking</button><button className="secondary" onClick={()=>setTab('loads')}>View requests</button></section>}
+      {tab === 'home' && <section className="panel hero"><span className="pill">LOADLINK CLEAN BUILD · NO OLD REPO</span><h1>Move goods with verified vans and trucks.</h1><p>Fresh LoadLink Botswana app connected to the existing Supabase transport database. If you do not see this badge, Vercel is deploying the wrong project or old commit.</p><div className="stats"><Stat icon={<Truck/>} label="Active" value={active}/><Stat icon={<Clock/>} label="Requests" value={loads.length}/><Stat icon={<CheckCircle2/>} label="Completed" value={completed}/></div><div className="estimate"><span>Supabase status</span><b>{configured ? 'Connected' : 'Env missing'}</b></div><div className="estimate"><span>Total request value</span><b>P{value.toLocaleString()}</b></div><button className="primary" onClick={()=>setTab('book')}><Plus size={16}/> New booking</button><button className="secondary" onClick={()=>setTab('loads')}>View requests</button></section>}
       {tab === 'book' && <section className="panel"><h2>Book transport</h2><form onSubmit={createLoad} className="form"><input required placeholder="Customer / business name" value={form.customer} onChange={e=>setForm({...form,customer:e.target.value})}/><input required placeholder="WhatsApp number" value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})}/><input required placeholder="Pickup location" value={form.pickup} onChange={e=>setForm({...form,pickup:e.target.value})}/><input required placeholder="Drop-off location" value={form.dropoff} onChange={e=>setForm({...form,dropoff:e.target.value})}/><select value={form.category} onChange={e=>setForm({...form,category:e.target.value})}>{Object.entries(tiers).map(([k,t])=><option key={k} value={k}>{t.label} · {t.capacity}</option>)}</select><textarea placeholder="Goods description" value={form.load} onChange={e=>setForm({...form,load:e.target.value})}/><input type="number" min="1" value={form.km} onChange={e=>setForm({...form,km:e.target.value})}/><input type="number" min="0" placeholder="Boost amount" value={form.boost} onChange={e=>setForm({...form,boost:e.target.value})}/><div className="estimate"><span>Recommended fare</span><b>P{quote}</b></div><button className="primary">Broadcast request</button></form></section>}
       {(tab === 'loads' || tab === 'drivers') && <><section className="panel search"><div className="searchbox"><Search size={16}/><input placeholder="Search bookings, places, status..." value={query} onChange={e=>setQuery(e.target.value)}/></div><div className="chips">{['all','mini','medium','big','broadcasting','completed'].map(f=><button key={f} className={filter===f?'on':''} onClick={()=>setFilter(f)}>{f}</button>)}</div><small>{filtered.length} results</small></section><section className="list">{filtered.map(l=><article className="card" key={l.id}><div><b>{l.pickup} → {l.dropoff}</b><span>{l.id} · {tiers[l.category]?.label || l.category} · {l.status}</span></div><strong>P{l.offer}</strong><div className="actions"><button onClick={()=>setSelected(l)}>Details</button><a href={`https://wa.me/26772347712?text=${encodeURIComponent('LoadLink '+l.id+' '+l.pickup+' to '+l.dropoff)}`} target="_blank">WhatsApp</a></div></article>)}</section></>}
-      {tab === 'profile' && <section className="panel"><span className="pill">Admin setup</span><h2>LoadLink Profile</h2><p>Connected to the same Supabase database used by the existing transport app.</p><div className="estimate"><span>Project</span><b>{configured ? 'Online' : 'Env missing'}</b></div></section>}
+      {tab === 'profile' && <section className="panel"><span className="pill">Admin setup</span><h2>LoadLink Profile</h2><p>This is the clean LoadLink app, not Heavy Haul Heroes.</p><div className="estimate"><span>Project</span><b>{configured ? 'Online' : 'Env missing'}</b></div></section>}
     </main>
     {selected && <div className="overlay" onClick={()=>setSelected(null)}><section className="sheet" onClick={e=>e.stopPropagation()}><button className="close" onClick={()=>setSelected(null)}><X size={16}/> Close</button><h2>{selected.id}</h2><p>{selected.pickup} to {selected.dropoff}</p><div className="estimate"><span>Fare</span><b>P{selected.offer}</b></div><div className="estimate"><span>Status</span><b>{selected.status}</b></div></section></div>}
     {toast && <div className="toast">{toast}</div>}

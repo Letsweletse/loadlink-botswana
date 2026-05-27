@@ -12,6 +12,8 @@ function requireClient() {
   return supabase;
 }
 
+export type LoadStatus = "Broadcasting" | "Accepted" | "In transit" | "Completed" | string;
+
 export type LoadRecord = {
   id: string;
   customer: string;
@@ -22,7 +24,7 @@ export type LoadRecord = {
   load?: string | null;
   km: number;
   offer: number;
-  status: string;
+  status: LoadStatus;
   driver?: string | null;
   driver_phone?: string | null;
   created_at?: string;
@@ -43,6 +45,28 @@ export type TruckRecord = {
   licence?: string | null;
   disc?: string | null;
   permit?: string | null;
+  created_at?: string;
+};
+
+export type ProfileRecord = {
+  id?: string;
+  role: "customer" | "driver" | "admin" | string;
+  name: string;
+  phone: string;
+  email?: string | null;
+  business?: string | null;
+  address?: string | null;
+  created_at?: string;
+};
+
+export type WalletTransaction = {
+  id?: string;
+  phone: string;
+  type: "deposit" | "commission" | "payout" | "adjustment" | string;
+  amount: number;
+  note?: string | null;
+  load_id?: string | null;
+  created_at?: string;
 };
 
 export async function fetchLoads() {
@@ -52,9 +76,23 @@ export async function fetchLoads() {
   return (data || []) as LoadRecord[];
 }
 
+export async function fetchLoad(id: string) {
+  const db = requireClient();
+  const { data, error } = await db.from("loads").select("*").eq("id", id).maybeSingle();
+  if (error) throw error;
+  return data as LoadRecord | null;
+}
+
 export async function fetchTrucks() {
   const db = requireClient();
   const { data, error } = await db.from("trucks").select("*").order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data || []) as TruckRecord[];
+}
+
+export async function fetchTrucksByPhone(phone: string) {
+  const db = requireClient();
+  const { data, error } = await db.from("trucks").select("*").eq("phone", phone).order("created_at", { ascending: false });
   if (error) throw error;
   return (data || []) as TruckRecord[];
 }
@@ -66,9 +104,23 @@ export async function createLoad(load: LoadRecord) {
   return data as LoadRecord;
 }
 
+export async function updateLoad(id: string, updates: Partial<LoadRecord>) {
+  const db = requireClient();
+  const { data, error } = await db.from("loads").update(updates).eq("id", id).select().single();
+  if (error) throw error;
+  return data as LoadRecord;
+}
+
 export async function createTruck(truck: TruckRecord) {
   const db = requireClient();
   const { data, error } = await db.from("trucks").insert({ wallet: 0, rating: 4.8, online: false, status: "Pending review", ...truck }).select().single();
+  if (error) throw error;
+  return data as TruckRecord;
+}
+
+export async function updateTruck(id: string, updates: Partial<TruckRecord>) {
+  const db = requireClient();
+  const { data, error } = await db.from("trucks").update(updates).eq("id", id).select().single();
   if (error) throw error;
   return data as TruckRecord;
 }
@@ -77,9 +129,41 @@ export async function upsertProfile(profile: { role: "customer" | "driver" | "ad
   const db = requireClient();
   const { data, error } = await db.from("profiles").upsert(profile, { onConflict: "phone" }).select().single();
   if (error) throw error;
-  return data;
+  return data as ProfileRecord;
+}
+
+export async function fetchProfile(phone: string) {
+  const db = requireClient();
+  const { data, error } = await db.from("profiles").select("*").eq("phone", phone).maybeSingle();
+  if (error) throw error;
+  return data as ProfileRecord | null;
+}
+
+export async function createWalletTransaction(tx: WalletTransaction) {
+  const db = requireClient();
+  const { data, error } = await db.from("wallet_transactions").insert(tx).select().single();
+  if (error) throw error;
+  return data as WalletTransaction;
+}
+
+export async function fetchWalletTransactions(phone: string) {
+  const db = requireClient();
+  const { data, error } = await db.from("wallet_transactions").select("*").eq("phone", phone).order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data || []) as WalletTransaction[];
 }
 
 export function makeLoadId() {
   return `LL-${String(Date.now()).slice(-6)}`;
+}
+
+export function localUser() {
+  if (typeof window === "undefined") return null;
+  const raw = localStorage.getItem("vanlink_user");
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as { name: string; phone: string; role: "client" | "driver" | string };
+  } catch {
+    return null;
+  }
 }

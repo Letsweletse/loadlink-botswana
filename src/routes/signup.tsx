@@ -3,6 +3,7 @@ import { AppShell, Panel, PrimaryButton } from "@/components/AppShell";
 import { MessageCircle, Phone } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { upsertProfile } from "@/lib/supabase";
 
 export const Route = createFileRoute("/signup")({
   validateSearch: (s: Record<string, unknown>) => ({ role: (s.role as "client" | "driver") ?? "client" }),
@@ -16,17 +17,29 @@ function SignUp() {
   const [name, setName] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [otp, setOtp] = useState("");
+  const [saving, setSaving] = useState(false);
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!otpSent) {
       setOtpSent(true);
       toast("Code sent on WhatsApp", { description: phone });
       return;
     }
-    localStorage.setItem("vanlink_user", JSON.stringify({ phone, name, role }));
-    toast.success("Welcome to Van-Link");
-    navigate({ to: role === "driver" ? "/driver" : "/client" });
+
+    setSaving(true);
+    try {
+      const normalizedRole = role === "driver" ? "driver" : "customer";
+      await upsertProfile({ name, phone, role: normalizedRole });
+      localStorage.setItem("vanlink_user", JSON.stringify({ phone, name, role }));
+      toast.success("Account saved successfully");
+      navigate({ to: role === "driver" ? "/driver" : "/client" });
+    } catch (error) {
+      console.error(error);
+      toast.error("Could not save account", { description: "Check Supabase tables and RLS policies." });
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -54,42 +67,42 @@ function SignUp() {
 
         <Panel>
           <form onSubmit={submit} className="space-y-4">
-          <Field label="Full name">
-            <input
-              required
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Kago Mokoena"
-              className="w-full rounded-xl border border-input bg-secondary px-4 py-3 text-sm text-card-foreground outline-none focus:border-primary"
-            />
-          </Field>
-          <Field label="WhatsApp number">
-            <div className="flex items-center gap-2 rounded-xl border border-input bg-secondary px-3 py-3 focus-within:border-primary">
-              <Phone className="h-4 w-4 text-muted-foreground" />
+            <Field label="Full name">
               <input
                 required
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                className="flex-1 bg-transparent text-sm text-card-foreground outline-none"
-              />
-            </div>
-          </Field>
-          {otpSent && (
-            <Field label="6-digit code (sent via WhatsApp)">
-              <input
-                required
-                value={otp}
-                onChange={(e) => setOtp(e.target.value)}
-                placeholder="123456"
-                maxLength={6}
-                className="w-full rounded-xl border border-input bg-secondary px-4 py-3 text-center text-lg tracking-[0.4em] text-card-foreground outline-none focus:border-primary"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g. Kago Mokoena"
+                className="w-full rounded-xl border border-input bg-secondary px-4 py-3 text-sm text-card-foreground outline-none focus:border-primary"
               />
             </Field>
-          )}
-          <PrimaryButton type="submit">
-            <MessageCircle className="-ml-1 mr-1 inline h-4 w-4" />
-            {otpSent ? "Verify & continue" : "Send WhatsApp code"}
-          </PrimaryButton>
+            <Field label="WhatsApp number">
+              <div className="flex items-center gap-2 rounded-xl border border-input bg-secondary px-3 py-3 focus-within:border-primary">
+                <Phone className="h-4 w-4 text-muted-foreground" />
+                <input
+                  required
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  className="flex-1 bg-transparent text-sm text-card-foreground outline-none"
+                />
+              </div>
+            </Field>
+            {otpSent && (
+              <Field label="6-digit code (sent via WhatsApp)">
+                <input
+                  required
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value)}
+                  placeholder="123456"
+                  maxLength={6}
+                  className="w-full rounded-xl border border-input bg-secondary px-4 py-3 text-center text-lg tracking-[0.4em] text-card-foreground outline-none focus:border-primary"
+                />
+              </Field>
+            )}
+            <PrimaryButton type="submit" disabled={saving}>
+              <MessageCircle className="-ml-1 mr-1 inline h-4 w-4" />
+              {saving ? "Saving..." : otpSent ? "Verify & continue" : "Send WhatsApp code"}
+            </PrimaryButton>
           </form>
         </Panel>
 

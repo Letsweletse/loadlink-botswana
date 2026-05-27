@@ -32,11 +32,11 @@ function SignUp() {
       const normalizedRole = role === "driver" ? "driver" : "customer";
       await upsertProfile({ name, phone, role: normalizedRole });
       localStorage.setItem("vanlink_user", JSON.stringify({ phone, name, role }));
-      toast.success("Account saved successfully");
+      toast.success("Account created successfully");
       navigate({ to: role === "driver" ? "/driver" : "/client" });
     } catch (error) {
       console.error(error);
-      toast.error("Could not save account", { description: "Check Supabase tables and RLS policies." });
+      toast.error("Could not create account", { description: "Please check your connection and try again." });
     } finally {
       setSaving(false);
     }
@@ -107,7 +107,7 @@ function SignUp() {
         </Panel>
 
         <p className="text-center text-xs text-foreground/60">
-          By continuing you agree to Van-Link's terms and Botswana transport regulations.
+          By continuing you agree to LoadLink's terms and transport requirements.
         </p>
       </div>
     </AppShell>

@@ -1,14 +1,58 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { AppShell, Panel } from "@/components/AppShell";
 import { MapPin, Phone, MessageCircle, Navigation } from "lucide-react";
+import { useEffect, useState } from "react";
+import { fetchLoad, type LoadRecord } from "@/lib/supabase";
 
 export const Route = createFileRoute("/track")({
   component: Track,
 });
 
 function Track() {
-  const trip = typeof window !== "undefined" ? localStorage.getItem("vanlink_trip") : null;
-  const t = trip ? (JSON.parse(trip) as { pickup: string; drop: string; fare: number; distance: number }) : null;
+  const [load, setLoad] = useState<LoadRecord | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    void loadTrip();
+  }, []);
+
+  async function loadTrip() {
+    const raw = typeof window !== "undefined" ? localStorage.getItem("vanlink_trip") : null;
+    const cached = raw ? JSON.parse(raw) as { id?: string; pickup?: string; drop?: string; dropoff?: string; fare?: number; offer?: number; distance?: number; km?: number } : null;
+    if (!cached?.id) {
+      setLoading(false);
+      return;
+    }
+    try {
+      const fresh = await fetchLoad(cached.id);
+      setLoad(fresh || {
+        id: cached.id,
+        customer: "Customer",
+        phone: "",
+        pickup: cached.pickup || "Pickup",
+        dropoff: cached.dropoff || cached.drop || "Drop-off",
+        category: "mini",
+        km: Number(cached.km || cached.distance || 0),
+        offer: Number(cached.offer || cached.fare || 0),
+        status: "Broadcasting",
+      });
+    } catch (error) {
+      console.error(error);
+      setLoad({
+        id: cached.id,
+        customer: "Customer",
+        phone: "",
+        pickup: cached.pickup || "Pickup",
+        dropoff: cached.dropoff || cached.drop || "Drop-off",
+        category: "mini",
+        km: Number(cached.km || cached.distance || 0),
+        offer: Number(cached.offer || cached.fare || 0),
+        status: "Broadcasting",
+      });
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <AppShell title="Live tracking">
@@ -30,42 +74,44 @@ function Track() {
             <Navigation className="h-3.5 w-3.5" />
           </div>
           <div className="absolute left-[48%] top-[48%] -translate-x-1/2 -translate-y-1/2">
-            <div className="rounded-full bg-ink px-3 py-1 text-[10px] font-semibold text-white shadow-[var(--shadow-elegant)]">Driver · 3 min</div>
+            <div className="rounded-full bg-ink px-3 py-1 text-[10px] font-semibold text-white shadow-[var(--shadow-elegant)]">{load?.status || "Waiting"}</div>
           </div>
           <p className="absolute bottom-2 right-3 text-[10px] text-muted-foreground">Map preview · OpenStreetMap-compatible</p>
         </div>
 
-          {!t ? (
-            <Panel className="text-center">
-              <p className="text-sm font-semibold text-card-foreground">No active trip</p>
-              <p className="mt-1 text-xs text-muted-foreground">Book a truck to see live tracking.</p>
-              <Link to="/client" className="mt-3 inline-block rounded-xl bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground">Book now</Link>
+        {loading ? (
+          <Panel className="text-center text-sm text-muted-foreground">Loading trip...</Panel>
+        ) : !load ? (
+          <Panel className="text-center">
+            <p className="text-sm font-semibold text-card-foreground">No active trip</p>
+            <p className="mt-1 text-xs text-muted-foreground">Book a truck to see live tracking.</p>
+            <Link to="/client" className="mt-3 inline-block rounded-xl bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground">Book now</Link>
+          </Panel>
+        ) : (
+          <>
+            <Panel>
+              <div className="flex items-center gap-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-base font-bold text-primary">LL</div>
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-card-foreground">{load.driver || "Waiting for driver"}</p>
+                  <p className="text-xs text-muted-foreground">{load.driver_phone || "Driver will appear after acceptance"}</p>
+                </div>
+                <a href={`tel:${load.driver_phone || ""}`} className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-ink"><Phone className="h-4 w-4" /></a>
+                <a href={`https://wa.me/${String(load.driver_phone || "").replace(/\D/g, "")}`} className="flex h-9 w-9 items-center justify-center rounded-full bg-success text-white"><MessageCircle className="h-4 w-4" /></a>
+              </div>
             </Panel>
-          ) : (
-            <>
-              <Panel>
-                <div className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-base font-bold text-primary">KM</div>
-                  <div className="flex-1">
-                    <p className="text-sm font-semibold text-card-foreground">Kago M. · B 472 GHK</p>
-                    <p className="text-xs text-muted-foreground">Toyota Hilux · 4.9 ★</p>
-                  </div>
-                  <a href="tel:" className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-ink"><Phone className="h-4 w-4" /></a>
-                  <a href="https://wa.me/" className="flex h-9 w-9 items-center justify-center rounded-full bg-success text-white"><MessageCircle className="h-4 w-4" /></a>
-                </div>
-              </Panel>
 
-              <Panel className="space-y-3 text-sm">
-                <div className="flex items-center gap-3"><MapPin className="h-4 w-4 text-success" /><span className="flex-1 text-card-foreground">{t.pickup}</span></div>
-                <div className="ml-2 h-4 border-l-2 border-dashed border-border" />
-                <div className="flex items-center gap-3"><Navigation className="h-4 w-4 text-primary" /><span className="flex-1 text-card-foreground">{t.drop}</span></div>
-                <div className="flex items-center justify-between border-t border-border pt-3 text-xs text-muted-foreground">
-                  <span>{t.distance} km · ETA 18 min</span>
-                  <span className="text-base font-bold text-primary">P{t.fare}</span>
-                </div>
-              </Panel>
-            </>
-          )}
+            <Panel className="space-y-3 text-sm">
+              <div className="flex items-center gap-3"><MapPin className="h-4 w-4 text-success" /><span className="flex-1 text-card-foreground">{load.pickup}</span></div>
+              <div className="ml-2 h-4 border-l-2 border-dashed border-border" />
+              <div className="flex items-center gap-3"><Navigation className="h-4 w-4 text-primary" /><span className="flex-1 text-card-foreground">{load.dropoff}</span></div>
+              <div className="flex items-center justify-between border-t border-border pt-3 text-xs text-muted-foreground">
+                <span>{load.km} km · {load.id}</span>
+                <span className="text-base font-bold text-primary">P{load.offer}</span>
+              </div>
+            </Panel>
+          </>
+        )}
       </div>
     </AppShell>
   );

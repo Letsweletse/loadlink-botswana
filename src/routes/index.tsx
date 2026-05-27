@@ -2,30 +2,13 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { AppShell, Panel, Chip, PrimaryButton } from "@/components/AppShell";
 import { BottomSheet } from "@/components/BottomSheet";
 import { Search, Truck, MapPin, Plus, Clock, CheckCircle2, MessageCircle } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { fetchLoads, updateLoad, type LoadRecord } from "@/lib/supabase";
 
 export const Route = createFileRoute("/")({
   component: Index,
 });
-
-type Trip = {
-  id: string;
-  from: string;
-  to: string;
-  size: "mini" | "medium" | "big";
-  status: "active" | "pending" | "completed";
-  fare: number;
-  when: string;
-};
-
-const TRIPS: Trip[] = [
-  { id: "VL-2841", from: "Game City",   to: "Mogoditshane",      size: "mini",   status: "active",    fare: 320,  when: "Now"     },
-  { id: "VL-2840", from: "Riverwalk",   to: "Tlokweng plot 482", size: "medium", status: "pending",   fare: 780,  when: "2m ago"  },
-  { id: "VL-2837", from: "Phakalane",   to: "Francistown CBD",   size: "big",    status: "active",    fare: 4200, when: "5m ago"  },
-  { id: "VL-2830", from: "Block 6",     to: "Lobatse",           size: "medium", status: "completed", fare: 1240, when: "Today"   },
-  { id: "VL-2828", from: "Airport Jct", to: "Molepolole",        size: "mini",   status: "completed", fare: 410,  when: "Today"   },
-];
 
 const FILTERS = ["All", "Active", "Pending", "Completed", "Mini", "Medium", "Big"] as const;
 
@@ -33,42 +16,78 @@ function Index() {
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>("All");
-  const [selected, setSelected] = useState<Trip | null>(null);
+  const [selected, setSelected] = useState<LoadRecord | null>(null);
+  const [trips, setTrips] = useState<LoadRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    void loadTrips();
+  }, []);
+
+  async function loadTrips() {
+    try {
+      setLoading(true);
+      const rows = await fetchLoads();
+      setTrips(rows);
+    } catch (error) {
+      console.error(error);
+      toast.error("Could not load bookings", { description: "Check Supabase loads table and RLS policies." });
+    } finally {
+      setLoading(false);
+    }
+  }
 
   const results = useMemo(() => {
-    return TRIPS.filter((t) => {
+    return trips.filter((t) => {
       const q = query.trim().toLowerCase();
-      if (q && !`${t.id} ${t.from} ${t.to}`.toLowerCase().includes(q)) return false;
+      if (q && !`${t.id} ${t.pickup} ${t.dropoff} ${t.customer} ${t.status}`.toLowerCase().includes(q)) return false;
       if (filter === "All") return true;
-      if (["Active", "Pending", "Completed"].includes(filter)) return t.status === filter.toLowerCase();
-      return t.size === filter.toLowerCase();
+      if (["Active", "Pending", "Completed"].includes(filter)) {
+        if (filter === "Active") return ["broadcasting", "accepted", "in transit"].includes(String(t.status).toLowerCase());
+        if (filter === "Pending") return String(t.status).toLowerCase() === "broadcasting";
+        return String(t.status).toLowerCase() === "completed";
+      }
+      return t.category === filter.toLowerCase();
     });
-  }, [query, filter]);
+  }, [query, filter, trips]);
+
+  const activeCount = trips.filter((t) => ["broadcasting", "accepted", "in transit"].includes(String(t.status).toLowerCase())).length;
+  const pendingCount = trips.filter((t) => String(t.status).toLowerCase() === "broadcasting").length;
+  const completedCount = trips.filter((t) => String(t.status).toLowerCase() === "completed").length;
+
+  async function markCompleted(load: LoadRecord) {
+    try {
+      const updated = await updateLoad(load.id, { status: "Completed" });
+      setTrips((rows) => rows.map((row) => (row.id === load.id ? updated : row)));
+      setSelected(updated);
+      toast.success(`Completed ${load.id}`);
+    } catch (error) {
+      console.error(error);
+      toast.error("Could not update load");
+    }
+  }
 
   return (
     <AppShell title="Dashboard">
       <div className="space-y-4">
-        {/* Status + heading */}
         <div className="vl-fade-in">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-success/20 px-2.5 py-1 text-[11px] font-semibold text-success">
-            <span className="h-1.5 w-1.5 rounded-full bg-success" /> 142 drivers online
+            <span className="h-1.5 w-1.5 rounded-full bg-success" /> Live Supabase dashboard
           </span>
           <h1 className="mt-2 text-2xl font-extrabold leading-tight text-foreground">
             Move anything,<br /> anywhere in SACU.
           </h1>
           <p className="mt-1 text-sm text-foreground/70">
-            Vans & trucks on demand. Live tracking, transparent fares.
+            Vans & trucks on demand. Bookings, drivers and trip status now come from the database.
           </p>
         </div>
 
-        {/* 3 stat cards */}
         <div className="grid grid-cols-3 gap-2">
-          <StatCard label="Active" value="2" tone="primary" />
-          <StatCard label="Pending" value="1" tone="warn" />
-          <StatCard label="Completed" value="14" tone="success" />
+          <StatCard label="Active" value={String(activeCount)} tone="primary" />
+          <StatCard label="Pending" value={String(pendingCount)} tone="warn" />
+          <StatCard label="Completed" value={String(completedCount)} tone="success" />
         </div>
 
-        {/* CTAs */}
         <div className="flex gap-2">
           <PrimaryButton onClick={() => navigate({ to: "/client" })}>
             <Plus className="-ml-1 mr-1 inline h-4 w-4" /> New booking
@@ -81,7 +100,6 @@ function Index() {
           </button>
         </div>
 
-        {/* Sticky search & filter */}
         <div className="sticky top-[60px] z-10 -mx-4 bg-background/85 px-4 pt-2 pb-3 backdrop-blur sm:top-[110px]">
           <div className="flex items-center gap-2 rounded-xl bg-card px-3 py-2.5 shadow-[var(--shadow-card)]">
             <Search className="h-4 w-4 text-muted-foreground" />
@@ -99,15 +117,14 @@ function Index() {
               </Chip>
             ))}
           </div>
-          <p className="mt-1 text-[11px] text-foreground/60">{results.length} results</p>
+          <p className="mt-1 text-[11px] text-foreground/60">{loading ? "Loading..." : `${results.length} results`}</p>
         </div>
 
-        {/* Result cards */}
         <div className="space-y-2.5">
           {results.map((t) => (
             <TripCard key={t.id} trip={t} onOpen={() => setSelected(t)} />
           ))}
-          {results.length === 0 && (
+          {!loading && results.length === 0 && (
             <Panel className="text-center text-sm text-muted-foreground">No trips match your filters.</Panel>
           )}
         </div>
@@ -117,13 +134,13 @@ function Index() {
         {selected && (
           <div className="space-y-4">
             <div className="rounded-xl bg-secondary p-3 text-sm">
-              <Row icon={<MapPin className="h-4 w-4 text-success" />} label="Pick-up" value={selected.from} />
+              <Row icon={<MapPin className="h-4 w-4 text-success" />} label="Pick-up" value={selected.pickup} />
               <div className="ml-2 my-1 h-3 border-l-2 border-dashed border-border" />
-              <Row icon={<MapPin className="h-4 w-4 text-primary" />} label="Drop-off" value={selected.to} />
+              <Row icon={<MapPin className="h-4 w-4 text-primary" />} label="Drop-off" value={selected.dropoff} />
             </div>
             <div className="grid grid-cols-3 gap-2 text-center text-xs">
-              <Mini label="Size" value={selected.size} />
-              <Mini label="Fare" value={`P${selected.fare}`} />
+              <Mini label="Size" value={selected.category} />
+              <Mini label="Fare" value={`P${selected.offer}`} />
               <Mini label="Status" value={selected.status} />
             </div>
             <div className="flex gap-2">
@@ -137,13 +154,10 @@ function Index() {
                 <MessageCircle className="-ml-1 mr-1 inline h-4 w-4" /> Message driver
               </button>
               <button
-                onClick={() => {
-                  navigate({ to: "/track" });
-                  setSelected(null);
-                }}
+                onClick={() => markCompleted(selected)}
                 className="flex-1 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground"
               >
-                Track live
+                Complete
               </button>
             </div>
           </div>
@@ -154,8 +168,7 @@ function Index() {
 }
 
 function StatCard({ label, value, tone }: { label: string; value: string; tone: "primary" | "warn" | "success" }) {
-  const dot =
-    tone === "primary" ? "bg-primary" : tone === "warn" ? "bg-amber-400" : "bg-success";
+  const dot = tone === "primary" ? "bg-primary" : tone === "warn" ? "bg-amber-400" : "bg-success";
   const Icon = tone === "primary" ? Truck : tone === "warn" ? Clock : CheckCircle2;
   return (
     <div className="rounded-xl bg-card p-3 shadow-[var(--shadow-card)] vl-fade-in">
@@ -169,32 +182,23 @@ function StatCard({ label, value, tone }: { label: string; value: string; tone: 
   );
 }
 
-function TripCard({ trip, onOpen }: { trip: Trip; onOpen: () => void }) {
-  const statusTone =
-    trip.status === "active"
-      ? "bg-primary/15 text-primary"
-      : trip.status === "pending"
-      ? "bg-amber-100 text-amber-700"
-      : "bg-success/15 text-success";
+function TripCard({ trip, onOpen }: { trip: LoadRecord; onOpen: () => void }) {
+  const status = String(trip.status || "Broadcasting").toLowerCase();
+  const statusTone = status === "completed" ? "bg-success/15 text-success" : status === "broadcasting" ? "bg-amber-100 text-amber-700" : "bg-primary/15 text-primary";
   return (
     <article className="rounded-xl bg-card p-3.5 text-card-foreground shadow-[var(--shadow-card)] vl-fade-in">
       <header className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="truncate text-sm font-semibold">{trip.from} → {trip.to}</p>
-          <p className="mt-0.5 text-[11px] text-muted-foreground">{trip.id} · {trip.when} · {trip.size}</p>
+          <p className="truncate text-sm font-semibold">{trip.pickup} → {trip.dropoff}</p>
+          <p className="mt-0.5 text-[11px] text-muted-foreground">{trip.id} · {trip.customer} · {trip.category}</p>
         </div>
         <div className="text-right">
-          <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold capitalize ${statusTone}`}>
-            {trip.status}
-          </span>
-          <p className="mt-1 text-sm font-bold">P{trip.fare}</p>
+          <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold capitalize ${statusTone}`}>{trip.status}</span>
+          <p className="mt-1 text-sm font-bold">P{trip.offer}</p>
         </div>
       </header>
       <div className="mt-3 flex gap-2">
-        <button
-          onClick={onOpen}
-          className="flex-1 rounded-lg bg-secondary px-3 py-1.5 text-xs font-semibold text-secondary-foreground"
-        >
+        <button onClick={onOpen} className="flex-1 rounded-lg bg-secondary px-3 py-1.5 text-xs font-semibold text-secondary-foreground">
           Details
         </button>
         <button

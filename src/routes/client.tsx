@@ -1,8 +1,9 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { AppShell } from "@/components/AppShell";
+import { AppShell, Panel, PrimaryButton } from "@/components/AppShell";
 import { TRUCK_TIERS, estimateFare, type TruckSize } from "@/lib/vanlink";
 import { MapPin, Navigation, Plus, Minus, Truck } from "lucide-react";
 import { useMemo, useState } from "react";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/client")({
   validateSearch: (s: Record<string, unknown>) => ({ size: (s.size as TruckSize) ?? "mini" }),
@@ -24,13 +25,14 @@ function ClientBooking() {
 
   const broadcast = () => {
     localStorage.setItem("vanlink_trip", JSON.stringify({ size, pickup, drop, distance, fare }));
+    toast.success("Broadcast sent", { description: `${tier.label} · P${fare}` });
     navigate({ to: "/track" });
   };
 
   return (
     <AppShell title="Book a trip">
-      <div className="px-5 pt-5 space-y-5">
-        <div className="rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)] space-y-3">
+      <div className="space-y-4">
+        <Panel className="space-y-3">
           <Row icon={<MapPin className="h-4 w-4 text-primary" />} label="Pick-up">
             <input value={pickup} onChange={(e) => setPickup(e.target.value)} placeholder="e.g. Game City, Gaborone" className="w-full bg-transparent text-sm outline-none" />
           </Row>
@@ -38,9 +40,9 @@ function ClientBooking() {
           <Row icon={<Navigation className="h-4 w-4 text-primary" />} label="Drop-off">
             <input value={drop} onChange={(e) => setDrop(e.target.value)} placeholder="e.g. Mogoditshane plot 1234" className="w-full bg-transparent text-sm outline-none" />
           </Row>
-        </div>
+        </Panel>
 
-        <div>
+        <Panel>
           <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Truck size</p>
           <div className="grid grid-cols-3 gap-2">
             {(Object.keys(TRUCK_TIERS) as TruckSize[]).map((k) => {
@@ -51,22 +53,22 @@ function ClientBooking() {
                   key={k}
                   onClick={() => setSize(k)}
                   className={`flex flex-col items-center gap-1 rounded-xl border p-3 text-center transition ${
-                    active ? "border-primary bg-primary/5" : "border-border bg-card"
+                    active ? "border-primary bg-primary/5" : "border-border bg-secondary"
                   }`}
                 >
                   <Truck className={`h-5 w-5 ${active ? "text-primary" : "text-muted-foreground"}`} />
-                  <span className="text-[11px] font-semibold leading-tight text-ink">{t.label}</span>
+                  <span className="text-[11px] font-semibold leading-tight text-card-foreground">{t.label}</span>
                   <span className="text-[10px] text-muted-foreground">{t.capacity}</span>
                 </button>
               );
             })}
           </div>
-        </div>
+        </Panel>
 
-        <div className="rounded-2xl border border-border bg-card p-4">
+        <Panel>
           <div className="flex items-center justify-between">
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Distance</p>
-            <span className="text-sm font-semibold text-ink">{distance} km</span>
+            <span className="text-sm font-semibold text-card-foreground">{distance} km</span>
           </div>
           <input
             type="range"
@@ -74,12 +76,12 @@ function ClientBooking() {
             max={120}
             value={distance}
             onChange={(e) => setDistance(Number(e.target.value))}
-            className="mt-3 w-full accent-[oklch(0.62_0.20_255)]"
+            className="mt-3 w-full accent-[oklch(0.60_0.21_255)]"
           />
           <p className="mt-1 text-[11px] text-muted-foreground">Base fare covers up to 12 km. Beyond that: P{tier.perKm}/km.</p>
-        </div>
+        </Panel>
 
-        <div className="rounded-2xl p-5 text-primary-foreground" style={{ background: "var(--gradient-primary)" }}>
+        <div className="rounded-2xl p-5 text-primary-foreground shadow-[var(--shadow-elegant)] vl-fade-in" style={{ background: "var(--gradient-primary)" }}>
           <p className="text-xs uppercase tracking-wider text-primary-foreground/80">Recommended fare</p>
           <div className="mt-1 flex items-baseline gap-2">
             <span className="text-4xl font-extrabold">P{fare}</span>
@@ -94,13 +96,9 @@ function ClientBooking() {
           </div>
         </div>
 
-        <button
-          onClick={broadcast}
-          disabled={!pickup || !drop}
-          className="w-full rounded-xl bg-ink px-4 py-3.5 text-sm font-semibold text-white disabled:opacity-40"
-        >
+        <PrimaryButton onClick={broadcast} disabled={!pickup || !drop}>
           Broadcast to nearby drivers
-        </button>
+        </PrimaryButton>
       </div>
     </AppShell>
   );

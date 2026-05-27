@@ -1,8 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { AppShell } from "@/components/AppShell";
+import { AppShell, Panel } from "@/components/AppShell";
 import { TRUCK_TIERS, type TruckSize } from "@/lib/vanlink";
 import { Truck, Wallet, BadgeCheck, FileText, AlertCircle } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/driver")({
   component: DriverHub,
@@ -19,8 +20,8 @@ function DriverHub() {
 
   return (
     <AppShell title="Driver hub">
-      <div className="px-5 pt-5 space-y-5">
-        <div className="rounded-2xl p-5 text-primary-foreground" style={{ background: "var(--gradient-hero)" }}>
+      <div className="space-y-4">
+        <div className="rounded-2xl p-5 text-primary-foreground shadow-[var(--shadow-elegant)] vl-fade-in" style={{ background: "var(--gradient-primary)" }}>
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs uppercase tracking-wider text-primary-foreground/80">Wallet balance</p>
@@ -28,7 +29,10 @@ function DriverHub() {
             </div>
             <Wallet className="h-8 w-8 text-white/80" />
           </div>
-          <button className="mt-4 w-full rounded-xl bg-white py-2.5 text-sm font-semibold text-primary">
+          <button
+            onClick={() => toast.success(`Top-up requested · P${tier.deposit}`)}
+            className="mt-4 w-full rounded-xl bg-white py-2.5 text-sm font-semibold text-primary"
+          >
             Top up from P{tier.deposit} to go active
           </button>
           <div className="mt-3 flex items-center gap-2 text-xs text-primary-foreground/85">
@@ -36,20 +40,24 @@ function DriverHub() {
           </div>
         </div>
 
-        <div className="flex items-center justify-between rounded-2xl border border-border bg-card p-4">
+        <Panel className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-semibold text-ink">Availability</p>
+            <p className="text-sm font-semibold text-card-foreground">Availability</p>
             <p className="text-xs text-muted-foreground">{active ? "You'll receive load broadcasts" : "Top up to go active"}</p>
           </div>
           <button
-            onClick={() => setActive((a) => !a)}
+            onClick={() => {
+              const next = !active;
+              setActive(next);
+              toast(next ? "You're now active" : "You're offline");
+            }}
             className={`relative h-7 w-12 rounded-full transition ${active ? "bg-success" : "bg-muted"}`}
           >
             <span className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition ${active ? "left-5" : "left-0.5"}`} />
           </button>
-        </div>
+        </Panel>
 
-        <div>
+        <Panel>
           <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Vehicle category</p>
           <div className="grid grid-cols-3 gap-2">
             {(Object.keys(TRUCK_TIERS) as TruckSize[]).map((k) => {
@@ -59,18 +67,18 @@ function DriverHub() {
                 <button
                   key={k}
                   onClick={() => setSize(k)}
-                  className={`flex flex-col items-center gap-1 rounded-xl border p-3 ${a ? "border-primary bg-primary/5" : "border-border bg-card"}`}
+                  className={`flex flex-col items-center gap-1 rounded-xl border p-3 ${a ? "border-primary bg-primary/5" : "border-border bg-secondary"}`}
                 >
                   <Truck className={`h-5 w-5 ${a ? "text-primary" : "text-muted-foreground"}`} />
-                  <span className="text-[11px] font-semibold text-ink">{t.label}</span>
+                  <span className="text-[11px] font-semibold text-card-foreground">{t.label}</span>
                   <span className="text-[10px] text-muted-foreground">P{t.deposit} min</span>
                 </button>
               );
             })}
           </div>
-        </div>
+        </Panel>
 
-        <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
+        <Panel className="space-y-3">
           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Register your truck</p>
           <Input label="Number plate" value={plate} onChange={setPlate} placeholder="B 123 ABC" />
           <Input label="Licence disk expiry" value={licenceExpiry} onChange={setLicenceExpiry} placeholder="YYYY-MM-DD" type="date" />
@@ -79,15 +87,20 @@ function DriverHub() {
 
           <div className="flex gap-2 rounded-xl bg-secondary p-3 text-xs text-muted-foreground">
             <AlertCircle className="h-4 w-4 shrink-0 text-primary" />
-            For {tier.label.toLowerCase()} you need <strong className="mx-1 text-ink">{tier.licence}</strong> per Botswana road transport regulations.
+            For {tier.label.toLowerCase()} you need <strong className="mx-1 text-card-foreground">{tier.licence}</strong> per Botswana road transport regulations.
           </div>
 
-          <button className="flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-card py-2.5 text-sm font-semibold text-ink">
+          <button className="flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-secondary py-2.5 text-sm font-semibold text-card-foreground">
             <FileText className="h-4 w-4" /> Upload licence disk & permit
           </button>
-        </div>
+        </Panel>
 
-        <Link to="/signup" search={{ role: "driver" }} className="block rounded-xl bg-ink py-3 text-center text-sm font-semibold text-white">
+        <Link
+          to="/signup"
+          search={{ role: "driver" }}
+          className="block rounded-xl py-3 text-center text-sm font-semibold text-primary-foreground shadow-[var(--shadow-elegant)]"
+          style={{ background: "var(--gradient-primary)" }}
+        >
           Save & verify on WhatsApp
         </Link>
       </div>
@@ -104,7 +117,7 @@ function Input({ label, value, onChange, placeholder, type = "text" }: { label: 
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm outline-none focus:border-primary"
+        className="w-full rounded-lg border border-input bg-secondary px-3 py-2.5 text-sm text-card-foreground outline-none focus:border-primary"
       />
     </label>
   );

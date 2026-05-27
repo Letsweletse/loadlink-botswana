@@ -2,12 +2,18 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { RouterProvider } from '@tanstack/react-router';
 import { getRouter } from './router';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import './styles.css';
 
-const router = getRouter();
+const root = document.getElementById('root');
 
-createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
-    <RouterProvider router={router} />
-  </React.StrictMode>,
-);
+if (root) {
+  const router = getRouter();
+  createRoot(root).render(
+    <React.StrictMode>
+      <ErrorBoundary>
+        <RouterProvider router={router} />
+      </ErrorBoundary>
+    </React.StrictMode>,
+  );
+}

@@ -4,6 +4,7 @@ import { TRUCK_TIERS, estimateFare, type TruckSize } from "@/lib/vanlink";
 import { MapPin, Navigation, Plus, Minus, Truck } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { createLoad, localUser, makeLoadId } from "@/lib/supabase";
 
 export const Route = createFileRoute("/client")({
   validateSearch: (s: Record<string, unknown>) => ({ size: (s.size as TruckSize) ?? "mini" }),
@@ -13,25 +14,59 @@ export const Route = createFileRoute("/client")({
 function ClientBooking() {
   const { size: initial } = Route.useSearch();
   const navigate = useNavigate();
+  const user = localUser();
   const [size, setSize] = useState<TruckSize>(initial);
   const [pickup, setPickup] = useState("");
   const [drop, setDrop] = useState("");
+  const [load, setLoad] = useState("");
   const [distance, setDistance] = useState(8);
   const [bump, setBump] = useState(0);
+  const [saving, setSaving] = useState(false);
 
   const tier = TRUCK_TIERS[size];
   const baseEstimate = useMemo(() => estimateFare(size, distance), [size, distance]);
   const fare = baseEstimate + bump;
 
-  const broadcast = () => {
-    localStorage.setItem("vanlink_trip", JSON.stringify({ size, pickup, drop, distance, fare }));
-    toast.success("Broadcast sent", { description: `${tier.label} · P${fare}` });
-    navigate({ to: "/track" });
+  const broadcast = async () => {
+    const id = makeLoadId();
+    const payload = {
+      id,
+      customer: user?.name || "Walk-in customer",
+      phone: user?.phone || "+267",
+      pickup,
+      dropoff: drop,
+      category: size,
+      load,
+      km: distance,
+      offer: fare,
+      status: "Broadcasting",
+      driver: null,
+      driver_phone: null,
+    };
+
+    setSaving(true);
+    try {
+      const saved = await createLoad(payload);
+      localStorage.setItem("vanlink_trip", JSON.stringify({ ...saved, drop: saved.dropoff, distance: saved.km, fare: saved.offer }));
+      toast.success("Broadcast sent", { description: `${tier.label} · P${fare}` });
+      navigate({ to: "/track" });
+    } catch (error) {
+      console.error(error);
+      toast.error("Could not create booking", { description: "Check Supabase loads table and RLS policies." });
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
     <AppShell title="Book a trip">
       <div className="space-y-4">
+        {!user && (
+          <Panel className="text-sm text-muted-foreground">
+            You can create a booking, but signing up first saves your name and WhatsApp number correctly.
+          </Panel>
+        )}
+
         <Panel className="space-y-3">
           <Row icon={<MapPin className="h-4 w-4 text-primary" />} label="Pick-up">
             <input value={pickup} onChange={(e) => setPickup(e.target.value)} placeholder="e.g. Game City, Gaborone" className="w-full bg-transparent text-sm outline-none" />
@@ -39,6 +74,10 @@ function ClientBooking() {
           <div className="h-px bg-border" />
           <Row icon={<Navigation className="h-4 w-4 text-primary" />} label="Drop-off">
             <input value={drop} onChange={(e) => setDrop(e.target.value)} placeholder="e.g. Mogoditshane plot 1234" className="w-full bg-transparent text-sm outline-none" />
+          </Row>
+          <div className="h-px bg-border" />
+          <Row icon={<Truck className="h-4 w-4 text-primary" />} label="Goods description">
+            <input value={load} onChange={(e) => setLoad(e.target.value)} placeholder="e.g. Furniture, stock, building material" className="w-full bg-transparent text-sm outline-none" />
           </Row>
         </Panel>
 
@@ -96,8 +135,8 @@ function ClientBooking() {
           </div>
         </div>
 
-        <PrimaryButton onClick={broadcast} disabled={!pickup || !drop}>
-          Broadcast to nearby drivers
+        <PrimaryButton onClick={broadcast} disabled={!pickup || !drop || saving}>
+          {saving ? "Broadcasting..." : "Broadcast to nearby drivers"}
         </PrimaryButton>
       </div>
     </AppShell>

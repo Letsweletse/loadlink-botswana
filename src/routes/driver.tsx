@@ -44,7 +44,7 @@ function DriverHub() {
       }
     } catch (error) {
       console.error(error);
-      toast.error("Could not load driver profile");
+      toast.error("Could not load driver profile", { description: "Please refresh and try again." });
     }
   }
 
@@ -61,7 +61,7 @@ function DriverHub() {
       toast.success(`Top-up recorded · P${tier.deposit}`);
     } catch (error) {
       console.error(error);
-      toast.error("Could not record top-up", { description: "Check wallet_transactions table and RLS policies." });
+      toast.error("Could not record top-up", { description: "Please try again in a moment." });
     }
   }
 
@@ -79,7 +79,7 @@ function DriverHub() {
       toast(updated.online ? "You're now active" : "You're offline");
     } catch (error) {
       console.error(error);
-      toast.error("Could not update availability");
+      toast.error("Could not update availability", { description: "Please try again." });
     }
   }
 
@@ -109,7 +109,7 @@ function DriverHub() {
       toast.success("Truck saved for verification");
     } catch (error) {
       console.error(error);
-      toast.error("Could not save truck", { description: "Check trucks table and RLS policies." });
+      toast.error("Could not save truck", { description: "Please check your details and try again." });
     } finally {
       setSaving(false);
     }

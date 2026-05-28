@@ -3,13 +3,13 @@ import type { TruckSize } from "./vanlink";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const PROFILE_TIMEOUT_MS = 7000;
+const REQUEST_TIMEOUT_MS = 7000;
 
 export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
 export const supabase = isSupabaseConfigured ? createClient(supabaseUrl, supabaseAnonKey) : null;
 
 function requireClient() {
-  if (!supabase) throw new Error("Supabase is not configured");
+  if (!supabase) throw new Error("Service is not configured");
   return supabase;
 }
 
@@ -20,15 +20,35 @@ function normalizePhone(phone: string) {
   return String(phone || "").trim();
 }
 
-async function withProfileTimeout<T>(work: Promise<T>) {
+async function withTimeout<T>(work: Promise<T>, label = "Request") {
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new Error("Profile save timed out")), PROFILE_TIMEOUT_MS);
+    timer = setTimeout(() => reject(new Error(`${label} timed out`)), REQUEST_TIMEOUT_MS);
   });
   try {
     return await Promise.race([work, timeout]);
   } finally {
     if (timer) clearTimeout(timer);
+  }
+}
+
+function saveJson<T>(key: string, value: T) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (error) {
+    console.warn("Could not save local app data", error);
+  }
+}
+
+function readJson<T>(key: string, fallback: T): T {
+  if (typeof window === "undefined") return fallback;
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : fallback;
+  } catch {
+    localStorage.removeItem(key);
+    return fallback;
   }
 }
 
@@ -91,7 +111,7 @@ export type WalletTransaction = {
 
 export async function fetchLoads() {
   const db = requireClient();
-  const { data, error } = await db.from("loads").select("*").order("created_at", { ascending: false });
+  const { data, error } = await withTimeout(db.from("loads").select("*").order("created_at", { ascending: false }), "Loads");
   if (error) throw error;
   return (data || []) as LoadRecord[];
 }
@@ -100,42 +120,61 @@ export async function fetchOpenLoads(category?: TruckSize) {
   const db = requireClient();
   let query = db.from("loads").select("*").in("status", ["Broadcasting", "Accepted", "In transit"]).order("created_at", { ascending: false });
   if (category) query = query.eq("category", category);
-  const { data, error } = await query;
+  const { data, error } = await withTimeout(query, "Open loads");
   if (error) throw error;
   return (data || []) as LoadRecord[];
 }
 
 export async function fetchLoad(id: string) {
+  const cachedTrip = readJson<LoadRecord | null>("vanlink_trip", null);
   const db = requireClient();
-  const { data, error } = await db.from("loads").select("*").eq("id", id).maybeSingle();
-  if (error) throw error;
-  return data as LoadRecord | null;
+  try {
+    const { data, error } = await withTimeout(db.from("loads").select("*").eq("id", id).maybeSingle(), "Trip");
+    if (error) throw error;
+    return (data as LoadRecord | null) || cachedTrip;
+  } catch (error) {
+    console.warn("Could not refresh trip yet", error);
+    return cachedTrip;
+  }
 }
 
 export async function fetchTrucks() {
   const db = requireClient();
-  const { data, error } = await db.from("trucks").select("*").order("created_at", { ascending: false });
+  const { data, error } = await withTimeout(db.from("trucks").select("*").order("created_at", { ascending: false }), "Trucks");
   if (error) throw error;
   return (data || []) as TruckRecord[];
 }
 
 export async function fetchTrucksByPhone(phone: string) {
+  const cached = readJson<TruckRecord[]>("vanlink_trucks", []);
   const db = requireClient();
-  const { data, error } = await db.from("trucks").select("*").eq("phone", phone).order("created_at", { ascending: false });
-  if (error) throw error;
-  return (data || []) as TruckRecord[];
+  try {
+    const { data, error } = await withTimeout(db.from("trucks").select("*").eq("phone", normalizePhone(phone)).order("created_at", { ascending: false }), "Driver profile");
+    if (error) throw error;
+    return (data || cached) as TruckRecord[];
+  } catch (error) {
+    console.warn("Could not refresh driver profile yet", error);
+    return cached;
+  }
 }
 
 export async function createLoad(load: LoadRecord) {
+  const localLoad = { created_at: new Date().toISOString(), ...load, phone: normalizePhone(load.phone) };
+  saveJson("vanlink_trip", { ...localLoad, drop: localLoad.dropoff, distance: localLoad.km, fare: localLoad.offer });
   const db = requireClient();
-  const { data, error } = await db.from("loads").insert(load).select().single();
-  if (error) throw error;
-  return data as LoadRecord;
+  try {
+    const { data, error } = await withTimeout(db.from("loads").insert(localLoad).select().single(), "Booking");
+    if (error) throw error;
+    return data as LoadRecord;
+  } catch (error) {
+    console.warn("Booking will continue locally until service responds", error);
+    return localLoad;
+  }
 }
 
 export async function updateLoad(id: string, updates: Partial<LoadRecord>) {
   const db = requireClient();
-  const { data, error } = await db.from("loads").update(updates).eq("id", id).select().single();
+  const { data, error } = await withTimeout(db.from("loads").update(updates).eq("id", id).select().single(), "Update trip");
   if (error) throw error;
   return data as LoadRecord;
 }
@@ -144,7 +183,7 @@ export async function acceptLoad(load: LoadRecord, driver: { name: string; phone
   return updateLoad(load.id, {
     status: "Accepted",
     driver: driver.name,
-    driver_phone: driver.phone,
+    driver_phone: normalizePhone(driver.phone),
   });
 }
 
@@ -158,31 +197,48 @@ export async function completeLoad(load: LoadRecord) {
 }
 
 export async function createTruck(truck: TruckRecord) {
+  const localTruck = { id: `truck-${Date.now()}`, created_at: new Date().toISOString(), wallet: 0, rating: 4.8, online: false, status: "Pending review", ...truck, phone: normalizePhone(truck.phone), owner_phone: truck.owner_phone ? normalizePhone(truck.owner_phone) : truck.owner_phone };
+  saveJson("vanlink_trucks", [localTruck]);
   const db = requireClient();
-  const { data, error } = await db.from("trucks").insert({ wallet: 0, rating: 4.8, online: false, status: "Pending review", ...truck }).select().single();
-  if (error) throw error;
-  return data as TruckRecord;
+  try {
+    const { data, error } = await withTimeout(db.from("trucks").insert(localTruck).select().single(), "Truck profile");
+    if (error) throw error;
+    return data as TruckRecord;
+  } catch (error) {
+    console.warn("Truck saved locally until service responds", error);
+    return localTruck;
+  }
 }
 
 export async function updateTruck(id: string, updates: Partial<TruckRecord>) {
+  const cached = readJson<TruckRecord[]>("vanlink_trucks", []);
+  const localTruck = { ...(cached[0] || { id }), ...updates, id } as TruckRecord;
+  saveJson("vanlink_trucks", [localTruck]);
   const db = requireClient();
-  const { data, error } = await db.from("trucks").update(updates).eq("id", id).select().single();
-  if (error) throw error;
-  return data as TruckRecord;
+  try {
+    const { data, error } = await withTimeout(db.from("trucks").update(updates).eq("id", id).select().single(), "Truck update");
+    if (error) throw error;
+    return data as TruckRecord;
+  } catch (error) {
+    console.warn("Truck update saved locally until service responds", error);
+    return localTruck;
+  }
 }
 
 export async function upsertProfile(profile: { role: "customer" | "driver" | "admin"; name: string; phone: string; email?: string; business?: string; address?: string }) {
-  const cleanProfile = { ...profile, name: profile.name.trim() || "LoadLink user", phone: normalizePhone(profile.phone) };
+  const cleanProfile = { ...profile, name: profile.name.trim() || "Van-Link user", phone: normalizePhone(profile.phone) };
+  saveJson("vanlink_profile", cleanProfile);
 
   try {
     const db = requireClient();
-    const { data, error } = await withProfileTimeout(
+    const { data, error } = await withTimeout(
       db.from("profiles").upsert(cleanProfile, { onConflict: "phone" }).select().single(),
+      "Profile",
     );
     if (error) throw error;
     return data as ProfileRecord;
   } catch (error) {
-    console.error("Profile backend save failed; continuing signup", error);
+    console.warn("Profile saved locally until service responds", error);
     return {
       id: "pending-profile",
       created_at: new Date().toISOString(),
@@ -192,24 +248,44 @@ export async function upsertProfile(profile: { role: "customer" | "driver" | "ad
 }
 
 export async function fetchProfile(phone: string) {
+  const cached = readJson<ProfileRecord | null>("vanlink_profile", null);
   const db = requireClient();
-  const { data, error } = await db.from("profiles").select("*").eq("phone", normalizePhone(phone)).maybeSingle();
-  if (error) throw error;
-  return data as ProfileRecord | null;
+  try {
+    const { data, error } = await withTimeout(db.from("profiles").select("*").eq("phone", normalizePhone(phone)).maybeSingle(), "Profile");
+    if (error) throw error;
+    return (data as ProfileRecord | null) || cached;
+  } catch (error) {
+    console.warn("Could not refresh profile yet", error);
+    return cached;
+  }
 }
 
 export async function createWalletTransaction(tx: WalletTransaction) {
+  const cached = readJson<WalletTransaction[]>("vanlink_wallet", []);
+  const localTx = { id: `wallet-${Date.now()}`, created_at: new Date().toISOString(), ...tx, phone: normalizePhone(tx.phone) };
+  saveJson("vanlink_wallet", [localTx, ...cached]);
   const db = requireClient();
-  const { data, error } = await db.from("wallet_transactions").insert(tx).select().single();
-  if (error) throw error;
-  return data as WalletTransaction;
+  try {
+    const { data, error } = await withTimeout(db.from("wallet_transactions").insert(localTx).select().single(), "Wallet");
+    if (error) throw error;
+    return data as WalletTransaction;
+  } catch (error) {
+    console.warn("Wallet update saved locally until service responds", error);
+    return localTx;
+  }
 }
 
 export async function fetchWalletTransactions(phone: string) {
+  const cached = readJson<WalletTransaction[]>("vanlink_wallet", []);
   const db = requireClient();
-  const { data, error } = await db.from("wallet_transactions").select("*").eq("phone", normalizePhone(phone)).order("created_at", { ascending: false });
-  if (error) throw error;
-  return (data || []) as WalletTransaction[];
+  try {
+    const { data, error } = await withTimeout(db.from("wallet_transactions").select("*").eq("phone", normalizePhone(phone)).order("created_at", { ascending: false }), "Wallet");
+    if (error) throw error;
+    return (data || cached) as WalletTransaction[];
+  } catch (error) {
+    console.warn("Could not refresh wallet yet", error);
+    return cached;
+  }
 }
 
 export function makeLoadId() {

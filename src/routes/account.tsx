@@ -67,7 +67,7 @@ function Account() {
           </button>
         </div>
 
-        <p className="text-center text-[11px] text-foreground/60">LoadLink · Botswana & SACU · live Supabase</p>
+        <p className="text-center text-[11px] text-foreground/60">Van-Link · Botswana & SACU</p>
       </div>
     </AppShell>
   );

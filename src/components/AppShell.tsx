@@ -1,6 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Home, Truck, MapPin, User, Package } from "lucide-react";
-import type { ReactNode } from "react";
+import { Download, Home, Truck, MapPin, User, Package, X } from "lucide-react";
+import { useEffect, useState, type ReactNode } from "react";
 import logo from "@/assets/vanlink-logo.jpeg";
 
 const TABS = [
@@ -11,9 +11,61 @@ const TABS = [
   { to: "/account", label: "Me", icon: User },
 ] as const;
 
+type BeforeInstallPromptEvent = Event & {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
+};
+
+function isStandaloneApp() {
+  if (typeof window === "undefined") return false;
+  return window.matchMedia("(display-mode: standalone)").matches || (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
+}
+
 export function AppShell({ children, title }: { children: ReactNode; title?: string }) {
   const { location } = useRouterState();
   const path = location.pathname;
+  const [installEvent, setInstallEvent] = useState<BeforeInstallPromptEvent | null>(null);
+  const [showInstall, setShowInstall] = useState(false);
+
+  useEffect(() => {
+    if (isStandaloneApp() || localStorage.getItem("vanlink_install_dismissed") === "true") return;
+
+    const onBeforeInstallPrompt = (event: Event) => {
+      event.preventDefault();
+      setInstallEvent(event as BeforeInstallPromptEvent);
+      setShowInstall(true);
+    };
+
+    window.addEventListener("beforeinstallprompt", onBeforeInstallPrompt);
+
+    const timer = window.setTimeout(() => {
+      if (!isStandaloneApp()) setShowInstall(true);
+    }, 1800);
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", onBeforeInstallPrompt);
+      window.clearTimeout(timer);
+    };
+  }, []);
+
+  async function installApp() {
+    if (installEvent) {
+      await installEvent.prompt();
+      const choice = await installEvent.userChoice.catch(() => null);
+      if (choice?.outcome === "accepted") {
+        setShowInstall(false);
+        setInstallEvent(null);
+      }
+      return;
+    }
+
+    alert("To install Van-Link, open your browser menu and choose Install app or Add to Home Screen.");
+  }
+
+  function dismissInstall() {
+    localStorage.setItem("vanlink_install_dismissed", "true");
+    setShowInstall(false);
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -54,7 +106,28 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
           </nav>
         </header>
 
-        <main className="flex-1 px-4 pb-28 pt-4 sm:px-6">{children}</main>
+        <main className="flex-1 px-4 pb-28 pt-4 sm:px-6">
+          {showInstall && !isStandaloneApp() && (
+            <section className="mb-4 rounded-2xl border border-primary/20 bg-card p-4 text-card-foreground shadow-[var(--shadow-card)]">
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <Download className="h-5 w-5" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-bold">Install Van-Link</p>
+                  <p className="mt-1 text-xs text-muted-foreground">Add the app to your phone for faster booking and tracking.</p>
+                  <button onClick={installApp} className="mt-3 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground">
+                    Install app
+                  </button>
+                </div>
+                <button onClick={dismissInstall} aria-label="Hide install prompt" className="rounded-lg p-1 text-muted-foreground hover:bg-secondary">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </section>
+          )}
+          {children}
+        </main>
 
         {/* Mobile bottom nav */}
         <nav className="fixed inset-x-0 bottom-0 z-30 mx-auto max-w-[760px] border-t border-[var(--color-border-on-navy)] bg-background/95 backdrop-blur sm:hidden">

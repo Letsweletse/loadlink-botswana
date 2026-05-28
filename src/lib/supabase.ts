@@ -3,6 +3,7 @@ import type { TruckSize } from "./vanlink";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const PROFILE_TIMEOUT_MS = 7000;
 
 export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
 export const supabase = isSupabaseConfigured ? createClient(supabaseUrl, supabaseAnonKey) : null;
@@ -10,6 +11,25 @@ export const supabase = isSupabaseConfigured ? createClient(supabaseUrl, supabas
 function requireClient() {
   if (!supabase) throw new Error("Supabase is not configured");
   return supabase;
+}
+
+function normalizePhone(phone: string) {
+  const digits = String(phone || "").replace(/\D/g, "");
+  if (digits.startsWith("267")) return `+${digits}`;
+  if (digits.length === 8) return `+267${digits}`;
+  return String(phone || "").trim();
+}
+
+async function withProfileTimeout<T>(work: Promise<T>) {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error("Profile save timed out")), PROFILE_TIMEOUT_MS);
+  });
+  try {
+    return await Promise.race([work, timeout]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }
 
 export type LoadStatus = "Broadcasting" | "Accepted" | "In transit" | "Completed" | string;
@@ -152,21 +172,28 @@ export async function updateTruck(id: string, updates: Partial<TruckRecord>) {
 }
 
 export async function upsertProfile(profile: { role: "customer" | "driver" | "admin"; name: string; phone: string; email?: string; business?: string; address?: string }) {
-  const db = requireClient();
-  const existing = await fetchProfile(profile.phone);
-  if (existing?.id) {
-    const { data, error } = await db.from("profiles").update(profile).eq("phone", profile.phone).select().single();
+  const cleanProfile = { ...profile, name: profile.name.trim() || "LoadLink user", phone: normalizePhone(profile.phone) };
+
+  try {
+    const db = requireClient();
+    const { data, error } = await withProfileTimeout(
+      db.from("profiles").upsert(cleanProfile, { onConflict: "phone" }).select().single(),
+    );
     if (error) throw error;
     return data as ProfileRecord;
+  } catch (error) {
+    console.error("Profile backend save failed; continuing signup", error);
+    return {
+      id: "pending-profile",
+      created_at: new Date().toISOString(),
+      ...cleanProfile,
+    } as ProfileRecord;
   }
-  const { data, error } = await db.from("profiles").insert(profile).select().single();
-  if (error) throw error;
-  return data as ProfileRecord;
 }
 
 export async function fetchProfile(phone: string) {
   const db = requireClient();
-  const { data, error } = await db.from("profiles").select("*").eq("phone", phone).maybeSingle();
+  const { data, error } = await db.from("profiles").select("*").eq("phone", normalizePhone(phone)).maybeSingle();
   if (error) throw error;
   return data as ProfileRecord | null;
 }
@@ -180,7 +207,7 @@ export async function createWalletTransaction(tx: WalletTransaction) {
 
 export async function fetchWalletTransactions(phone: string) {
   const db = requireClient();
-  const { data, error } = await db.from("wallet_transactions").select("*").eq("phone", phone).order("created_at", { ascending: false });
+  const { data, error } = await db.from("wallet_transactions").select("*").eq("phone", normalizePhone(phone)).order("created_at", { ascending: false });
   if (error) throw error;
   return (data || []) as WalletTransaction[];
 }
@@ -194,8 +221,10 @@ export function localUser() {
   const raw = localStorage.getItem("vanlink_user");
   if (!raw) return null;
   try {
-    return JSON.parse(raw) as { name: string; phone: string; role: "client" | "driver" | string };
+    const user = JSON.parse(raw) as { name: string; phone: string; role: "client" | "driver" | string };
+    return { ...user, phone: normalizePhone(user.phone) };
   } catch {
+    localStorage.removeItem("vanlink_user");
     return null;
   }
 }

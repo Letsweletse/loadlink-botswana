@@ -16,30 +16,11 @@ export default defineConfig({
     emptyOutDir: true,
     rollupOptions: {
       output: {
-        manualChunks(id) {
-          if (!id.includes("node_modules")) return undefined;
-
-          if (id.includes("react") || id.includes("react-dom")) {
-            return "react-vendor";
-          }
-
-          if (id.includes("@radix-ui")) {
-            return "radix-ui";
-          }
-
-          if (id.includes("recharts") || id.includes("d3-")) {
-            return "charts";
-          }
-
-          if (id.includes("@tanstack")) {
-            return "tanstack";
-          }
-
-          if (id.includes("@supabase")) {
-            return "supabase";
-          }
-
-          return "vendor";
+        manualChunks: {
+          "react-vendor": ["react", "react-dom"],
+          supabase: ["@supabase/supabase-js"],
+          tanstack: ["@tanstack/react-query", "@tanstack/react-router"],
+          charts: ["recharts"],
         },
       },
     },

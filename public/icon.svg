@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Van-Link</title>
+  <desc id="desc">Van-Link Botswana logistics app icon</desc>
+  <defs>
+    <linearGradient id="bg" x1="64" x2="448" y1="64" y2="448" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0b73d9" />
+      <stop offset="1" stop-color="#2d9ff0" />
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="16" stdDeviation="18" flood-color="#06345f" flood-opacity="0.32" />
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)" />
+  <path d="M116 316h42l28-82c10-28 28-42 55-42h82c22 0 39 9 51 27l39 59h27c13 0 24 11 24 24v44c0 14-11 25-25 25h-24a53 53 0 0 1-104 0H207a53 53 0 0 1-104 0H76v-91c0-18 13-33 31-36l9-2v74Z" fill="#fff" filter="url(#shadow)" />
+  <path d="M210 235h62v67h-86l18-52c1-5 3-10 6-15Zm91 0h27c7 0 13 3 17 9l38 58h-82v-67Z" fill="#dff2ff" />
+  <circle cx="155" cy="371" r="31" fill="#071426" />
+  <circle cx="155" cy="371" r="13" fill="#fff" />
+  <circle cx="363" cy="371" r="31" fill="#071426" />
+  <circle cx="363" cy="371" r="13" fill="#fff" />
+  <path d="M105 154h192" stroke="#fff" stroke-width="28" stroke-linecap="round" opacity="0.92" />
+  <path d="M105 106h133" stroke="#fff" stroke-width="28" stroke-linecap="round" opacity="0.72" />
+</svg>

@@ -171,3 +171,18 @@
   .vl-fade-in { animation: vl-fade-in 280ms ease-out both; }
   .vl-slide-up { animation: vl-slide-up 260ms cubic-bezier(.2,.8,.2,1) both; }
 }
+
+@layer utilities {
+  .input-mobile {
+    width: 100%;
+    flex: 1;
+    background: transparent;
+    font-size: 0.875rem;
+    color: var(--color-card-foreground);
+    outline: none;
+  }
+
+  .input-mobile::placeholder {
+    color: var(--color-muted-foreground);
+  }
+}

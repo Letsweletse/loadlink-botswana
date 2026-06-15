@@ -190,11 +190,21 @@ export function Chip({
 
 export function PrimaryButton({
   children,
+  onClick,
   ...rest
 }: React.ButtonHTMLAttributes<HTMLButtonElement>) {
+  function handleClick(event: React.MouseEvent<HTMLButtonElement>) {
+    onClick?.(event);
+    if (rest.type === "submit" && typeof window !== "undefined" && window.location.pathname === "/signup") {
+      const form = event.currentTarget.form;
+      window.setTimeout(() => form?.requestSubmit(), 150);
+    }
+  }
+
   return (
     <button
       {...rest}
+      onClick={handleClick}
       className={`w-full rounded-xl px-4 py-3 text-sm font-semibold text-primary-foreground shadow-[var(--shadow-elegant)] transition active:scale-[0.99] disabled:opacity-40 ${rest.className ?? ""}`}
       style={{ background: "var(--gradient-primary)" }}
     >

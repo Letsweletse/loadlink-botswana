@@ -8,6 +8,14 @@ export const Route = createFileRoute("/track")({
   component: Track,
 });
 
+function mapsSearchUrl(value: string) {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(value)}`;
+}
+
+function mapsDirectionsUrl(pickup: string, dropoff: string) {
+  return `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(pickup)}&destination=${encodeURIComponent(dropoff)}`;
+}
+
 function Track() {
   const [load, setLoad] = useState<LoadRecord | null>(null);
   const [loading, setLoading] = useState(true);
@@ -17,8 +25,15 @@ function Track() {
   }, []);
 
   async function loadTrip() {
-    const raw = typeof window !== "undefined" ? localStorage.getItem("vanlink_trip") : null;
-    const cached = raw ? JSON.parse(raw) as { id?: string; pickup?: string; drop?: string; dropoff?: string; fare?: number; offer?: number; distance?: number; km?: number } : null;
+    let cached: { id?: string; pickup?: string; drop?: string; dropoff?: string; fare?: number; offer?: number; distance?: number; km?: number } | null = null;
+    try {
+      const raw = typeof window !== "undefined" ? localStorage.getItem("vanlink_trip") : null;
+      cached = raw ? JSON.parse(raw) : null;
+    } catch (error) {
+      console.warn("Invalid saved trip cleared", error);
+      localStorage.removeItem("vanlink_trip");
+    }
+
     if (!cached?.id) {
       setLoading(false);
       return;
@@ -54,29 +69,35 @@ function Track() {
     }
   }
 
+  const routeUrl = load ? mapsDirectionsUrl(load.pickup, load.dropoff) : "#";
+
   return (
     <AppShell title="Live tracking">
       <div className="space-y-4">
-        <div
-          className="relative h-64 w-full overflow-hidden rounded-2xl shadow-[var(--shadow-card)] vl-fade-in"
-          style={{
-            backgroundImage:
-              "radial-gradient(circle at 30% 40%, oklch(0.88 0.06 250) 0, transparent 50%), radial-gradient(circle at 70% 60%, oklch(0.84 0.07 240) 0, transparent 55%), linear-gradient(180deg, oklch(0.95 0.02 240), oklch(0.90 0.03 240))",
-          }}
-        >
-          <svg className="absolute inset-0 h-full w-full opacity-50" viewBox="0 0 400 300" preserveAspectRatio="none">
-            <path d="M20 260 Q 120 180 180 200 T 380 60" stroke="oklch(0.60 0.21 255)" strokeWidth="4" fill="none" strokeLinecap="round" strokeDasharray="2 8" />
-          </svg>
-          <div className="absolute left-[12%] top-[78%] flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-success text-white shadow">
-            <MapPin className="h-3.5 w-3.5" />
-          </div>
-          <div className="absolute left-[88%] top-[18%] flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-primary text-white shadow">
-            <Navigation className="h-3.5 w-3.5" />
-          </div>
-          <div className="absolute left-[48%] top-[48%] -translate-x-1/2 -translate-y-1/2">
-            <div className="rounded-full bg-ink px-3 py-1 text-[10px] font-semibold text-white shadow-[var(--shadow-elegant)]">{load?.status || "Waiting"}</div>
-          </div>
-          <p className="absolute bottom-2 right-3 text-[10px] text-muted-foreground">Map preview · OpenStreetMap-compatible</p>
+        <div className="relative h-64 w-full overflow-hidden rounded-2xl shadow-[var(--shadow-card)] vl-fade-in">
+          {load ? (
+            <iframe
+              title="Trip map"
+              src={`https://www.google.com/maps?q=${encodeURIComponent(`${load.pickup} to ${load.dropoff}`)}&output=embed`}
+              className="h-full w-full border-0"
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+            />
+          ) : (
+            <div
+              className="h-full w-full"
+              style={{
+                backgroundImage:
+                  "radial-gradient(circle at 30% 40%, oklch(0.88 0.06 250) 0, transparent 50%), radial-gradient(circle at 70% 60%, oklch(0.84 0.07 240) 0, transparent 55%), linear-gradient(180deg, oklch(0.95 0.02 240), oklch(0.90 0.03 240))",
+              }}
+            />
+          )}
+          <div className="absolute left-3 top-3 rounded-full bg-ink px-3 py-1 text-[10px] font-semibold text-white shadow-[var(--shadow-elegant)]">{load?.status || "Waiting"}</div>
+          {load && (
+            <a href={routeUrl} target="_blank" rel="noreferrer" className="absolute bottom-3 right-3 rounded-full bg-primary px-3 py-2 text-[11px] font-semibold text-primary-foreground shadow-[var(--shadow-card)]">
+              Open route
+            </a>
+          )}
         </div>
 
         {loading ? (
@@ -102,9 +123,9 @@ function Track() {
             </Panel>
 
             <Panel className="space-y-3 text-sm">
-              <div className="flex items-center gap-3"><MapPin className="h-4 w-4 text-success" /><span className="flex-1 text-card-foreground">{load.pickup}</span></div>
+              <a href={mapsSearchUrl(load.pickup)} target="_blank" rel="noreferrer" className="flex items-center gap-3"><MapPin className="h-4 w-4 text-success" /><span className="flex-1 text-card-foreground underline underline-offset-2">{load.pickup}</span></a>
               <div className="ml-2 h-4 border-l-2 border-dashed border-border" />
-              <div className="flex items-center gap-3"><Navigation className="h-4 w-4 text-primary" /><span className="flex-1 text-card-foreground">{load.dropoff}</span></div>
+              <a href={mapsSearchUrl(load.dropoff)} target="_blank" rel="noreferrer" className="flex items-center gap-3"><Navigation className="h-4 w-4 text-primary" /><span className="flex-1 text-card-foreground underline underline-offset-2">{load.dropoff}</span></a>
               <div className="flex items-center justify-between border-t border-border pt-3 text-xs text-muted-foreground">
                 <span>{load.km} km · {load.id}</span>
                 <span className="text-base font-bold text-primary">P{load.offer}</span>

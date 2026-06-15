@@ -1,4 +1,10 @@
 {
   "buildCommand": "npm run build",
-  "installCommand": "npm install"
+  "installCommand": "npm install",
+  "rewrites": [
+    {
+      "source": "/((?!api|assets|manifest.webmanifest|icon.svg|sw.js).*)",
+      "destination": "/index.html"
+    }
+  ]
 }

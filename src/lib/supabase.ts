@@ -20,13 +20,13 @@ function normalizePhone(phone: string) {
   return String(phone || "").trim();
 }
 
-async function withTimeout<T>(work: Promise<T>, label = "Request") {
+async function withTimeout<T>(work: PromiseLike<T>, label = "Request") {
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<never>((_, reject) => {
     timer = setTimeout(() => reject(new Error(`${label} timed out`)), REQUEST_TIMEOUT_MS);
   });
   try {
-    return await Promise.race([work, timeout]);
+    return await Promise.race([Promise.resolve(work), timeout]);
   } finally {
     if (timer) clearTimeout(timer);
   }
@@ -110,25 +110,39 @@ export type WalletTransaction = {
 };
 
 export async function fetchLoads() {
-  const db = requireClient();
-  const { data, error } = await withTimeout(db.from("loads").select("*").order("created_at", { ascending: false }), "Loads");
-  if (error) throw error;
-  return (data || []) as LoadRecord[];
+  const cachedTrip = readJson<LoadRecord | null>("vanlink_trip", null);
+  try {
+    const db = requireClient();
+    const { data, error } = await withTimeout(db.from("loads").select("*").order("created_at", { ascending: false }), "Loads");
+    if (error) throw error;
+    return (data || []) as LoadRecord[];
+  } catch (error) {
+    console.warn("Could not load trips from service yet", error);
+    return cachedTrip ? [cachedTrip] : [];
+  }
 }
 
 export async function fetchOpenLoads(category?: TruckSize) {
-  const db = requireClient();
-  let query = db.from("loads").select("*").in("status", ["Broadcasting", "Accepted", "In transit"]).order("created_at", { ascending: false });
-  if (category) query = query.eq("category", category);
-  const { data, error } = await withTimeout(query, "Open loads");
-  if (error) throw error;
-  return (data || []) as LoadRecord[];
+  const cachedTrip = readJson<LoadRecord | null>("vanlink_trip", null);
+  try {
+    const db = requireClient();
+    let query = db.from("loads").select("*").in("status", ["Broadcasting", "Accepted", "In transit"]).order("created_at", { ascending: false });
+    if (category) query = query.eq("category", category);
+    const { data, error } = await withTimeout(query, "Open loads");
+    if (error) throw error;
+    return (data || []) as LoadRecord[];
+  } catch (error) {
+    console.warn("Could not load open trips from service yet", error);
+    if (!cachedTrip) return [];
+    if (category && cachedTrip.category !== category) return [];
+    return [cachedTrip];
+  }
 }
 
 export async function fetchLoad(id: string) {
   const cachedTrip = readJson<LoadRecord | null>("vanlink_trip", null);
-  const db = requireClient();
   try {
+    const db = requireClient();
     const { data, error } = await withTimeout(db.from("loads").select("*").eq("id", id).maybeSingle(), "Trip");
     if (error) throw error;
     return (data as LoadRecord | null) || cachedTrip;
@@ -139,16 +153,22 @@ export async function fetchLoad(id: string) {
 }
 
 export async function fetchTrucks() {
-  const db = requireClient();
-  const { data, error } = await withTimeout(db.from("trucks").select("*").order("created_at", { ascending: false }), "Trucks");
-  if (error) throw error;
-  return (data || []) as TruckRecord[];
+  const cached = readJson<TruckRecord[]>("vanlink_trucks", []);
+  try {
+    const db = requireClient();
+    const { data, error } = await withTimeout(db.from("trucks").select("*").order("created_at", { ascending: false }), "Trucks");
+    if (error) throw error;
+    return (data || cached) as TruckRecord[];
+  } catch (error) {
+    console.warn("Could not refresh trucks yet", error);
+    return cached;
+  }
 }
 
 export async function fetchTrucksByPhone(phone: string) {
   const cached = readJson<TruckRecord[]>("vanlink_trucks", []);
-  const db = requireClient();
   try {
+    const db = requireClient();
     const { data, error } = await withTimeout(db.from("trucks").select("*").eq("phone", normalizePhone(phone)).order("created_at", { ascending: false }), "Driver profile");
     if (error) throw error;
     return (data || cached) as TruckRecord[];
@@ -161,8 +181,8 @@ export async function fetchTrucksByPhone(phone: string) {
 export async function createLoad(load: LoadRecord) {
   const localLoad = { created_at: new Date().toISOString(), ...load, phone: normalizePhone(load.phone) };
   saveJson("vanlink_trip", { ...localLoad, drop: localLoad.dropoff, distance: localLoad.km, fare: localLoad.offer });
-  const db = requireClient();
   try {
+    const db = requireClient();
     const { data, error } = await withTimeout(db.from("loads").insert(localLoad).select().single(), "Booking");
     if (error) throw error;
     return data as LoadRecord;
@@ -173,10 +193,19 @@ export async function createLoad(load: LoadRecord) {
 }
 
 export async function updateLoad(id: string, updates: Partial<LoadRecord>) {
-  const db = requireClient();
-  const { data, error } = await withTimeout(db.from("loads").update(updates).eq("id", id).select().single(), "Update trip");
-  if (error) throw error;
-  return data as LoadRecord;
+  const cachedTrip = readJson<LoadRecord | null>("vanlink_trip", null);
+  const localTrip = cachedTrip?.id === id ? { ...cachedTrip, ...updates } : cachedTrip;
+  if (localTrip) saveJson("vanlink_trip", localTrip);
+  try {
+    const db = requireClient();
+    const { data, error } = await withTimeout(db.from("loads").update(updates).eq("id", id).select().single(), "Update trip");
+    if (error) throw error;
+    return data as LoadRecord;
+  } catch (error) {
+    console.warn("Trip update saved locally until service responds", error);
+    if (localTrip) return localTrip;
+    throw error;
+  }
 }
 
 export async function acceptLoad(load: LoadRecord, driver: { name: string; phone: string }) {
@@ -199,8 +228,8 @@ export async function completeLoad(load: LoadRecord) {
 export async function createTruck(truck: TruckRecord) {
   const localTruck = { id: `truck-${Date.now()}`, created_at: new Date().toISOString(), wallet: 0, rating: 4.8, online: false, status: "Pending review", ...truck, phone: normalizePhone(truck.phone), owner_phone: truck.owner_phone ? normalizePhone(truck.owner_phone) : truck.owner_phone };
   saveJson("vanlink_trucks", [localTruck]);
-  const db = requireClient();
   try {
+    const db = requireClient();
     const { data, error } = await withTimeout(db.from("trucks").insert(localTruck).select().single(), "Truck profile");
     if (error) throw error;
     return data as TruckRecord;
@@ -214,8 +243,8 @@ export async function updateTruck(id: string, updates: Partial<TruckRecord>) {
   const cached = readJson<TruckRecord[]>("vanlink_trucks", []);
   const localTruck = { ...(cached[0] || { id }), ...updates, id } as TruckRecord;
   saveJson("vanlink_trucks", [localTruck]);
-  const db = requireClient();
   try {
+    const db = requireClient();
     const { data, error } = await withTimeout(db.from("trucks").update(updates).eq("id", id).select().single(), "Truck update");
     if (error) throw error;
     return data as TruckRecord;
@@ -249,8 +278,8 @@ export async function upsertProfile(profile: { role: "customer" | "driver" | "ad
 
 export async function fetchProfile(phone: string) {
   const cached = readJson<ProfileRecord | null>("vanlink_profile", null);
-  const db = requireClient();
   try {
+    const db = requireClient();
     const { data, error } = await withTimeout(db.from("profiles").select("*").eq("phone", normalizePhone(phone)).maybeSingle(), "Profile");
     if (error) throw error;
     return (data as ProfileRecord | null) || cached;
@@ -264,8 +293,8 @@ export async function createWalletTransaction(tx: WalletTransaction) {
   const cached = readJson<WalletTransaction[]>("vanlink_wallet", []);
   const localTx = { id: `wallet-${Date.now()}`, created_at: new Date().toISOString(), ...tx, phone: normalizePhone(tx.phone) };
   saveJson("vanlink_wallet", [localTx, ...cached]);
-  const db = requireClient();
   try {
+    const db = requireClient();
     const { data, error } = await withTimeout(db.from("wallet_transactions").insert(localTx).select().single(), "Wallet");
     if (error) throw error;
     return data as WalletTransaction;
@@ -277,8 +306,8 @@ export async function createWalletTransaction(tx: WalletTransaction) {
 
 export async function fetchWalletTransactions(phone: string) {
   const cached = readJson<WalletTransaction[]>("vanlink_wallet", []);
-  const db = requireClient();
   try {
+    const db = requireClient();
     const { data, error } = await withTimeout(db.from("wallet_transactions").select("*").eq("phone", normalizePhone(phone)).order("created_at", { ascending: false }), "Wallet");
     if (error) throw error;
     return (data || cached) as WalletTransaction[];

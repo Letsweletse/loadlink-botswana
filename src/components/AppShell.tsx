@@ -1,7 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { Download, Home, Truck, MapPin, User, Package, X } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
-import logo from "@/assets/vanlink-logo.jpeg";
 
 const TABS = [
   { to: "/", label: "Home", icon: Home },
@@ -92,7 +91,7 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
         <header className="sticky top-0 z-20 border-b border-[var(--color-border-on-navy)] bg-background/85 backdrop-blur">
           <div className="flex items-center gap-3 px-4 py-3">
             <Link to="/" className="flex items-center gap-2">
-              <img src={logo} alt="Van-Link" className="h-9 w-9 rounded-lg bg-white object-cover p-0.5" />
+              <img src="/icon.svg" alt="Van-Link" className="h-9 w-9 rounded-lg bg-white object-cover p-0.5" />
               <span className="text-base font-bold tracking-tight text-foreground">
                 <span className="text-primary-glow">Van</span>-Link
               </span>

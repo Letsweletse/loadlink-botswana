@@ -21,6 +21,24 @@ function isStandaloneApp() {
   return window.matchMedia("(display-mode: standalone)").matches || (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
 }
 
+function safeStorageGet(key: string) {
+  try {
+    if (typeof window === "undefined") return null;
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function safeStorageSet(key: string, value: string) {
+  try {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(key, value);
+  } catch {
+    // Private or restricted mobile browsers can block localStorage.
+  }
+}
+
 export function AppShell({ children, title }: { children: ReactNode; title?: string }) {
   const { location } = useRouterState();
   const path = location.pathname;
@@ -28,7 +46,7 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
   const [showInstall, setShowInstall] = useState(false);
 
   useEffect(() => {
-    if (isStandaloneApp() || localStorage.getItem("vanlink_install_dismissed") === "true") return;
+    if (isStandaloneApp() || safeStorageGet("vanlink_install_dismissed") === "true") return;
 
     const onBeforeInstallPrompt = (event: Event) => {
       event.preventDefault();
@@ -63,7 +81,7 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
   }
 
   function dismissInstall() {
-    localStorage.setItem("vanlink_install_dismissed", "true");
+    safeStorageSet("vanlink_install_dismissed", "true");
     setShowInstall(false);
   }
 

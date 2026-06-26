@@ -17,6 +17,11 @@ async function clearOldCaches() {
 
 self.addEventListener("install", (event) => {
   event.waitUntil(cacheAppShell());
+const CACHE_NAME = 'vanlink-pwa-v9';
+const APP_SHELL = ['/', '/manifest.webmanifest'];
+
+self.addEventListener('install', (event) => {
+  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)).catch(() => null));
   self.skipWaiting();
 });
 
@@ -36,7 +41,7 @@ self.addEventListener("fetch", (event) => {
 
   if (event.request.mode === "navigate") {
     event.respondWith(
-      fetch(event.request)
+      fetch(event.request, { cache: 'no-store' })
         .then((response) => {
           const clone = response.clone();
           caches
@@ -56,6 +61,13 @@ self.addEventListener("fetch", (event) => {
             })
           );
         }),
+          if (response.ok) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put('/', clone)).catch(() => null);
+          }
+          return response;
+        })
+        .catch(() => caches.match('/')),
     );
     return;
   }
@@ -63,7 +75,7 @@ self.addEventListener("fetch", (event) => {
   event.respondWith(
     fetch(event.request)
       .then((response) => {
-        if (response.ok) {
+        if (response.ok && response.status === 200) {
           const clone = response.clone();
           caches
             .open(CACHE_NAME)

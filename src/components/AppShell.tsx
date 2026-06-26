@@ -65,7 +65,7 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
 
     const timer = window.setTimeout(() => {
       if (!isStandaloneApp()) setShowInstall(true);
-    }, 1800);
+    }, 900);
 
     return () => {
       window.removeEventListener("beforeinstallprompt", onBeforeInstallPrompt);
@@ -131,16 +131,16 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
 
         <main className="flex-1 px-4 pb-28 pt-4 sm:px-6">
           {showInstall && !isStandaloneApp() && (
-            <section className="mb-4 rounded-2xl border border-primary/20 bg-card p-4 text-card-foreground shadow-[var(--shadow-card)]">
+            <section className="mb-4 rounded-3xl border border-primary/30 bg-gradient-to-br from-primary/15 via-card to-card p-4 text-card-foreground shadow-[0_18px_60px_rgba(0,0,0,.22)]">
               <div className="flex items-start gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-[var(--shadow-card)]">
                   <Download className="h-5 w-5" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm font-bold">Install Van-Link</p>
-                  <p className="mt-1 text-xs text-muted-foreground">Add the app to your phone for faster booking and tracking.</p>
-                  <button onClick={installApp} className="mt-3 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground">
-                    Install app
+                  <p className="text-base font-extrabold">Install Van-Link app</p>
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground">Get faster request, driver broadcast board and tracking from your home screen.</p>
+                  <button onClick={installApp} className="mt-3 w-full rounded-xl bg-primary px-3 py-3 text-sm font-extrabold text-primary-foreground">
+                    Install app now
                   </button>
                 </div>
                 <button onClick={dismissInstall} aria-label="Hide install prompt" className="rounded-lg p-1 text-muted-foreground hover:bg-secondary">
@@ -161,9 +161,7 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
                 <li key={t.to}>
                   <Link
                     to={t.to}
-                    className={`flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium transition ${
-                      active ? "text-primary-glow" : "text-foreground/60"
-                    }`}
+                    className={`flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium transition ${active ? "text-primary-glow" : "text-foreground/60"}`}
                   >
                     <Icon className={`h-5 w-5 ${active ? "scale-110" : ""} transition`} />
                     {t.label}
@@ -186,24 +184,9 @@ export function Panel({ children, className = "" }: { children: ReactNode; class
   );
 }
 
-export function Chip({
-  active,
-  children,
-  onClick,
-}: {
-  active?: boolean;
-  children: ReactNode;
-  onClick?: () => void;
-}) {
+export function Chip({ active, children, onClick }: { active?: boolean; children: ReactNode; onClick?: () => void }) {
   return (
-    <button
-      onClick={onClick}
-      className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition ${
-        active
-          ? "bg-primary text-primary-foreground shadow-[var(--shadow-elegant)]"
-          : "bg-chip text-chip-foreground hover:brightness-95"
-      }`}
-    >
+    <button onClick={onClick} className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition ${active ? "bg-primary text-primary-foreground shadow-[var(--shadow-elegant)]" : "bg-chip text-chip-foreground hover:brightness-95"}`}>
       {children}
     </button>
   );
@@ -211,11 +194,7 @@ export function Chip({
 
 export function PrimaryButton({ children, ...rest }: React.ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
-    <button
-      {...rest}
-      className={`w-full rounded-xl px-4 py-3 text-sm font-semibold text-primary-foreground shadow-[var(--shadow-elegant)] transition active:scale-[0.99] disabled:opacity-40 ${rest.className ?? ""}`}
-      style={{ background: "var(--gradient-primary)" }}
-    >
+    <button {...rest} className={`w-full rounded-xl px-4 py-3 text-sm font-semibold text-primary-foreground shadow-[var(--shadow-elegant)] transition active:scale-[0.99] disabled:opacity-40 ${rest.className ?? ""}`} style={{ background: "var(--gradient-primary)" }}>
       {children}
     </button>
   );

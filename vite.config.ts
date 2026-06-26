@@ -12,6 +12,8 @@ export default defineConfig({
     },
   },
   build: {
+    target: ["es2018", "chrome61", "safari13"],
+    cssTarget: ["chrome61", "safari13"],
     outDir: "dist",
     emptyOutDir: true,
     rollupOptions: {

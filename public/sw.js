@@ -3,6 +3,26 @@ const APP_SHELL = ["/", "/manifest.webmanifest", "/icon.svg"];
 
 async function cacheAppShell() {
   const cache = await caches.open(CACHE_NAME);
+  await Promise.all(
+    APP_SHELL.map(function cacheShellUrl(url) {
+      return cache.add(url).catch(function ignoreCacheFailure() {
+        return null;
+      });
+    }),
+  );
+}
+
+async function clearOldCaches() {
+  const keys = await caches.keys();
+  await Promise.all(
+    keys
+      .filter((key) => key.startsWith("vanlink-pwa-") && key !== CACHE_NAME)
+      .map((key) => caches.delete(key)),
+  );
+}
+
+self.addEventListener("install", (event) => {
+  event.waitUntil(cacheAppShell());
   await Promise.allSettled(APP_SHELL.map((url) => cache.add(url)));
 }
 
@@ -30,6 +50,7 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") self.skipWaiting();
   if (event.data?.type === "SKIP_WAITING") self.skipWaiting();
 });
 
@@ -48,6 +69,19 @@ self.addEventListener("fetch", (event) => {
             .open(CACHE_NAME)
             .then((cache) => cache.put("/", clone))
             .catch(() => null);
+          return response;
+        })
+        .catch(async () => {
+          const cachedShell = await caches.match("/");
+          return (
+            cachedShell ||
+            new Response("Van-Link is offline. Please refresh when your network returns.", {
+              headers: { "Content-Type": "text/plain; charset=utf-8" },
+              status: 503,
+              statusText: "Service Unavailable",
+            })
+          );
+        }),
           return response;
         })
         .catch(async () => {

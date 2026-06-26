@@ -16,6 +16,51 @@
   </head>
   <body>
     <div id="root"></div>
+    <div
+      id="legacy-browser"
+      style="
+        display: none;
+        min-height: 100vh;
+        padding: 24px;
+        font-family: Arial, sans-serif;
+        background: #071426;
+        color: #ffffff;
+      "
+    >
+      <div
+        style="
+          max-width: 520px;
+          margin: 40px auto;
+          padding: 20px;
+          border-radius: 16px;
+          background: #ffffff;
+          color: #111827;
+        "
+      >
+        <p
+          style="
+            margin: 0 0 8px;
+            font-size: 12px;
+            font-weight: 800;
+            color: #0b73d9;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+          "
+        >
+          Van-Link
+        </p>
+        <h1 style="margin: 0 0 10px; font-size: 24px; line-height: 1.1">
+          Please update your browser
+        </h1>
+        <p style="margin: 0; color: #64748b; font-size: 14px; line-height: 1.5">
+          This phone browser is too old to run the Van-Link app. Please update Chrome, Safari, or
+          Android System WebView, then open vanlink.co.bw again.
+        </p>
+      </div>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
+    <script nomodule>
+      document.getElementById("legacy-browser").style.display = "block";
+    </script>
   </body>
 </html>

@@ -71,35 +71,35 @@
 :root {
   --radius: 0.625rem;
   /* Page = deep navy. Cards/panels = white. */
-  --background: oklch(0.20 0.05 255);
+  --background: oklch(0.2 0.05 255);
   --surface: oklch(0.16 0.05 258);
   --foreground: oklch(0.98 0.01 250);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.22 0.05 255);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.22 0.05 255);
-  --primary: oklch(0.60 0.21 255);
+  --primary: oklch(0.6 0.21 255);
   --primary-foreground: oklch(1 0 0);
-  --primary-glow: oklch(0.70 0.19 250);
+  --primary-glow: oklch(0.7 0.19 250);
   --ink: oklch(0.22 0.05 255);
   --secondary: oklch(0.95 0.025 250);
   --secondary-foreground: oklch(0.22 0.05 255);
   --muted: oklch(0.96 0.012 250);
-  --muted-foreground: oklch(0.50 0.03 250);
+  --muted-foreground: oklch(0.5 0.03 250);
   --chip: oklch(0.93 0.05 250);
-  --chip-foreground: oklch(0.40 0.18 255);
+  --chip-foreground: oklch(0.4 0.18 255);
   --accent: oklch(0.93 0.05 250);
-  --accent-foreground: oklch(0.40 0.18 255);
+  --accent-foreground: oklch(0.4 0.18 255);
   --success: oklch(0.68 0.16 155);
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: oklch(0.984 0.003 247.858);
   --border: oklch(0.92 0.015 250);
   --border-on-navy: oklch(1 0 0 / 10%);
   --input: oklch(0.92 0.015 250);
-  --ring: oklch(0.60 0.21 255);
+  --ring: oklch(0.6 0.21 255);
   --gradient-primary: linear-gradient(135deg, oklch(0.62 0.22 258), oklch(0.72 0.18 250));
-  --shadow-card: 0 4px 16px -6px color-mix(in oklab, oklch(0.10 0.05 260) 35%, transparent);
-  --shadow-elegant: 0 10px 30px -10px color-mix(in oklab, oklch(0.60 0.21 255) 45%, transparent);
+  --shadow-card: 0 4px 16px -6px color-mix(in oklab, oklch(0.1 0.05 260) 35%, transparent);
+  --shadow-elegant: 0 10px 30px -10px color-mix(in oklab, oklch(0.6 0.21 255) 45%, transparent);
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
@@ -113,6 +113,53 @@
   --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
   --sidebar-border: oklch(0.929 0.013 255.508);
   --sidebar-ring: oklch(0.704 0.04 256.788);
+}
+
+@supports not (color: oklch(0.6 0.2 255)) {
+  :root {
+    --background: #071426;
+    --surface: #0b1b33;
+    --foreground: #f8fafc;
+    --card: #ffffff;
+    --card-foreground: #1f2937;
+    --popover: #ffffff;
+    --popover-foreground: #1f2937;
+    --primary: #0b73d9;
+    --primary-foreground: #ffffff;
+    --primary-glow: #2d9ff0;
+    --ink: #1f2937;
+    --secondary: #eef5ff;
+    --secondary-foreground: #1f2937;
+    --muted: #f1f5f9;
+    --muted-foreground: #64748b;
+    --chip: #e5f1ff;
+    --chip-foreground: #0b73d9;
+    --accent: #e5f1ff;
+    --accent-foreground: #0b73d9;
+    --success: #16a34a;
+    --destructive: #dc2626;
+    --destructive-foreground: #ffffff;
+    --border: #dbeafe;
+    --border-on-navy: rgba(255, 255, 255, 0.12);
+    --input: #dbeafe;
+    --ring: #0b73d9;
+    --gradient-primary: linear-gradient(135deg, #0b73d9, #2d9ff0);
+    --shadow-card: 0 4px 16px -6px rgba(15, 23, 42, 0.22);
+    --shadow-elegant: 0 10px 30px -10px rgba(11, 115, 217, 0.45);
+    --chart-1: #f97316;
+    --chart-2: #14b8a6;
+    --chart-3: #2563eb;
+    --chart-4: #eab308;
+    --chart-5: #f59e0b;
+    --sidebar: #f8fafc;
+    --sidebar-foreground: #0f172a;
+    --sidebar-primary: #1e293b;
+    --sidebar-primary-foreground: #f8fafc;
+    --sidebar-accent: #f1f5f9;
+    --sidebar-accent-foreground: #1e293b;
+    --sidebar-border: #e2e8f0;
+    --sidebar-ring: #94a3b8;
+  }
 }
 
 .dark {
@@ -161,15 +208,29 @@
   }
 
   @keyframes vl-fade-in {
-    from { opacity: 0; transform: translateY(6px); }
-    to   { opacity: 1; transform: translateY(0); }
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
   @keyframes vl-slide-up {
-    from { transform: translateY(100%); }
-    to   { transform: translateY(0); }
+    from {
+      transform: translateY(100%);
+    }
+    to {
+      transform: translateY(0);
+    }
   }
-  .vl-fade-in { animation: vl-fade-in 280ms ease-out both; }
-  .vl-slide-up { animation: vl-slide-up 260ms cubic-bezier(.2,.8,.2,1) both; }
+  .vl-fade-in {
+    animation: vl-fade-in 280ms ease-out both;
+  }
+  .vl-slide-up {
+    animation: vl-slide-up 260ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
 }
 
 @layer utilities {

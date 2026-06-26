@@ -224,11 +224,11 @@ export async function updateLoad(id: string, updates: Partial<LoadRecord>) {
   try {
     const db = requireClient();
     const { data, error } = await withTimeout(
-      db.from("loads").update(updates).eq("id", id).select().single(),
+      db.from("loads").update(updates).eq("id", id).select().maybeSingle(),
       "Update trip",
     );
     if (error) throw error;
-    return data as LoadRecord;
+    return (data as LoadRecord | null) || localTrip || ({ id, ...updates } as LoadRecord);
   } catch (error) {
     console.warn("Trip update saved locally until service responds", error);
     if (localTrip) return localTrip;
@@ -237,11 +237,38 @@ export async function updateLoad(id: string, updates: Partial<LoadRecord>) {
 }
 
 export async function acceptLoad(load: LoadRecord, driver: { name: string; phone: string }) {
-  return updateLoad(load.id, {
+  const acceptedLoad: LoadRecord = {
+    ...load,
     status: "Accepted",
-    driver: driver.name,
+    driver: driver.name || "LoadLink driver",
     driver_phone: normalizePhone(driver.phone),
+  };
+
+  saveJson("vanlink_driver_load", acceptedLoad);
+  saveJson("vanlink_trip", {
+    ...acceptedLoad,
+    drop: acceptedLoad.dropoff,
+    distance: acceptedLoad.km,
+    fare: acceptedLoad.offer,
   });
+
+  try {
+    const db = requireClient();
+    const { data, error } = await withTimeout(
+      db
+        .from("loads")
+        .update({ status: "Accepted", driver: acceptedLoad.driver, driver_phone: acceptedLoad.driver_phone })
+        .eq("id", load.id)
+        .select()
+        .maybeSingle(),
+      "Accept load",
+    );
+    if (error) throw error;
+    return (data as LoadRecord | null) || acceptedLoad;
+  } catch (error) {
+    console.warn("Load acceptance saved locally until service responds", error);
+    return acceptedLoad;
+  }
 }
 
 export async function completeLoad(load: LoadRecord) {
@@ -293,11 +320,11 @@ export async function updateTruck(id: string, updates: Partial<TruckRecord>) {
   try {
     const db = requireClient();
     const { data, error } = await withTimeout(
-      db.from("trucks").update(updates).eq("id", id).select().single(),
+      db.from("trucks").update(updates).eq("id", id).select().maybeSingle(),
       "Truck update",
     );
     if (error) throw error;
-    return data as TruckRecord;
+    return (data as TruckRecord | null) || localTruck;
   } catch (error) {
     console.warn("Truck update saved locally until service responds", error);
     return localTruck;

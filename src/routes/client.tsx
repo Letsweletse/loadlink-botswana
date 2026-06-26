@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { AppShell, Panel, PrimaryButton } from "@/components/AppShell";
 import { TRUCK_TIERS, estimateFare, type TruckSize } from "@/lib/vanlink";
-import { MapPin, Navigation, Plus, Minus, Truck, LocateFixed, ExternalLink } from "lucide-react";
+import { MapPin, Navigation, Plus, Minus, Truck, LocateFixed, ExternalLink, User, Phone, Mail } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { createLoad, localUser, makeLoadId } from "@/lib/supabase";
@@ -30,7 +30,7 @@ function mapsEmbedUrl(pickup: string, dropoff: string) {
 
 function safeStorageSet(key: string, value: string) {
   try {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined" || !window.localStorage) return;
     window.localStorage.setItem(key, value);
   } catch {
     // Restricted mobile browsers can block localStorage.
@@ -49,12 +49,17 @@ function ClientBooking() {
   const [bump, setBump] = useState(0);
   const [saving, setSaving] = useState(false);
   const [locating, setLocating] = useState(false);
+  const [guestName, setGuestName] = useState("");
+  const [guestPhone, setGuestPhone] = useState("+267 ");
+  const [guestEmail, setGuestEmail] = useState("");
 
   const tier = TRUCK_TIERS[size];
   const baseEstimate = useMemo(() => estimateFare(size, distance), [size, distance]);
   const fare = baseEstimate + bump;
   const mapReady = pickup.trim().length > 0 || drop.trim().length > 0;
   const directionsReady = pickup.trim().length > 0 && drop.trim().length > 0;
+  const requestName = user?.name || guestName.trim() || "Guest customer";
+  const requestPhone = user?.phone || guestPhone.trim() || "+267";
 
   function useCurrentLocation() {
     if (!("geolocation" in navigator)) {
@@ -81,10 +86,24 @@ function ClientBooking() {
   const broadcast = async () => {
     setSaving(true);
     try {
+      if (!user) {
+        safeStorageSet(
+          "vanlink_user",
+          JSON.stringify({
+            name: requestName,
+            phone: requestPhone,
+            email: guestEmail.trim(),
+            role: "guest",
+            guest: true,
+            createdAt: new Date().toISOString(),
+          }),
+        );
+      }
+
       const saved = await createLoad({
         id: makeLoadId(),
-        customer: user?.name || "Customer",
-        phone: user?.phone || "+267",
+        customer: requestName,
+        phone: requestPhone,
         pickup,
         dropoff: drop,
         category: size,
@@ -95,7 +114,7 @@ function ClientBooking() {
         driver: null,
         driver_phone: null,
       });
-      safeStorageSet("vanlink_trip", JSON.stringify({ ...saved, drop: saved.dropoff, distance: saved.km, fare: saved.offer }));
+      safeStorageSet("vanlink_trip", JSON.stringify({ ...saved, drop: saved.dropoff, distance: saved.km, fare: saved.offer, guestEmail }));
       toast.success("Booking request sent", { description: `${tier.label} · P${fare}` });
       navigate({ to: "/track" });
     } catch (error) {
@@ -109,7 +128,28 @@ function ClientBooking() {
   return (
     <AppShell title="Book a trip">
       <div className="space-y-4">
-        {!user && <Panel className="text-sm text-muted-foreground">Sign up first to save your name and WhatsApp number for faster bookings.</Panel>}
+        {!user && (
+          <Panel className="space-y-3">
+            <div>
+              <p className="text-sm font-bold text-card-foreground">Continue as guest</p>
+              <p className="text-xs text-muted-foreground">Make the request now. Full registration can come later when payment or driver verification is needed.</p>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-3">
+              <div className="flex items-center gap-2 rounded-xl border border-input bg-secondary px-3 py-2.5">
+                <User className="h-4 w-4 text-muted-foreground" />
+                <input value={guestName} onChange={(e) => setGuestName(e.target.value)} placeholder="Name optional" className="w-full bg-transparent text-sm outline-none" />
+              </div>
+              <div className="flex items-center gap-2 rounded-xl border border-input bg-secondary px-3 py-2.5">
+                <Phone className="h-4 w-4 text-muted-foreground" />
+                <input value={guestPhone} onChange={(e) => setGuestPhone(e.target.value)} placeholder="WhatsApp" className="w-full bg-transparent text-sm outline-none" />
+              </div>
+              <div className="flex items-center gap-2 rounded-xl border border-input bg-secondary px-3 py-2.5">
+                <Mail className="h-4 w-4 text-muted-foreground" />
+                <input value={guestEmail} onChange={(e) => setGuestEmail(e.target.value)} placeholder="Email optional" className="w-full bg-transparent text-sm outline-none" />
+              </div>
+            </div>
+          </Panel>
+        )}
 
         <Panel className="space-y-3">
           <Row icon={<MapPin className="h-4 w-4 text-primary" />} label="Pick-up">

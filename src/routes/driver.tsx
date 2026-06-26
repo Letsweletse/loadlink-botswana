@@ -1,14 +1,30 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { AppShell, Panel } from "@/components/AppShell";
 import { TRUCK_TIERS, type TruckSize } from "@/lib/vanlink";
-import { Truck, Wallet, BadgeCheck, FileText, AlertCircle } from "lucide-react";
+import { Truck, Wallet, BadgeCheck, FileText, AlertCircle, RefreshCw, MapPin, Navigation, CheckCircle2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { createTruck, createWalletTransaction, fetchTrucksByPhone, fetchWalletTransactions, localUser, updateTruck, type TruckRecord, type WalletTransaction } from "@/lib/supabase";
+import {
+  acceptLoad,
+  createTruck,
+  createWalletTransaction,
+  fetchOpenLoads,
+  fetchTrucksByPhone,
+  fetchWalletTransactions,
+  localUser,
+  updateTruck,
+  type LoadRecord,
+  type TruckRecord,
+  type WalletTransaction,
+} from "@/lib/supabase";
 
 export const Route = createFileRoute("/driver")({
   component: DriverHub,
 });
+
+function mapsDirectionsUrl(pickup: string, dropoff: string) {
+  return `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(pickup)}&destination=${encodeURIComponent(dropoff)}`;
+}
 
 function DriverHub() {
   const user = localUser();
@@ -20,12 +36,19 @@ function DriverHub() {
   const [active, setActive] = useState(false);
   const [truck, setTruck] = useState<TruckRecord | null>(null);
   const [wallet, setWallet] = useState<WalletTransaction[]>([]);
+  const [openLoads, setOpenLoads] = useState<LoadRecord[]>([]);
+  const [loadingLoads, setLoadingLoads] = useState(false);
+  const [acceptingId, setAcceptingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const tier = TRUCK_TIERS[size];
 
   useEffect(() => {
     void loadDriverData();
   }, []);
+
+  useEffect(() => {
+    void loadBroadcasts(size);
+  }, [size]);
 
   async function loadDriverData() {
     if (!user?.phone) return;
@@ -41,10 +64,24 @@ function DriverHub() {
         setBaPermit(latest.permit || "");
         setDriverCode(latest.licence || "");
         setActive(Boolean(latest.online));
+        await loadBroadcasts(latest.category);
       }
     } catch (error) {
       console.error(error);
       toast.error("Could not load driver profile", { description: "Please refresh and try again." });
+    }
+  }
+
+  async function loadBroadcasts(category = size) {
+    setLoadingLoads(true);
+    try {
+      const loads = await fetchOpenLoads(category);
+      setOpenLoads(loads.filter((load) => load.status === "Broadcasting" && !load.driver_phone));
+    } catch (error) {
+      console.error(error);
+      toast.error("Could not load broadcasts", { description: "Pull down or tap refresh again." });
+    } finally {
+      setLoadingLoads(false);
     }
   }
 
@@ -77,6 +114,7 @@ function DriverHub() {
       setTruck(updated);
       setActive(Boolean(updated.online));
       toast(updated.online ? "You're now active" : "You're offline");
+      if (updated.online) void loadBroadcasts(updated.category);
     } catch (error) {
       console.error(error);
       toast.error("Could not update availability", { description: "Please try again." });
@@ -107,11 +145,39 @@ function DriverHub() {
       const saved = truck?.id ? await updateTruck(truck.id, payload) : await createTruck(payload);
       setTruck(saved);
       toast.success("Truck saved for verification");
+      await loadBroadcasts(saved.category);
     } catch (error) {
       console.error(error);
       toast.error("Could not save truck", { description: "Please check your details and try again." });
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function acceptBroadcast(load: LoadRecord) {
+    if (!user?.phone) {
+      toast.error("Sign up first", { description: "Create a driver account before accepting loads." });
+      return;
+    }
+    if (!truck?.id) {
+      toast.error("Save your truck first", { description: "Register your truck before accepting broadcasts." });
+      return;
+    }
+    if (!active) {
+      toast.error("Go active first", { description: "Turn on availability to accept broadcasts." });
+      return;
+    }
+
+    setAcceptingId(load.id);
+    try {
+      const accepted = await acceptLoad(load, { name: user.name || truck.name || "LoadLink driver", phone: user.phone });
+      setOpenLoads((rows) => rows.filter((row) => row.id !== accepted.id));
+      toast.success("Load accepted", { description: `${accepted.pickup} to ${accepted.dropoff}` });
+    } catch (error) {
+      console.error(error);
+      toast.error("Could not accept load", { description: "Refresh broadcasts and try again." });
+    } finally {
+      setAcceptingId(null);
     }
   }
 
@@ -137,11 +203,58 @@ function DriverHub() {
         <Panel className="flex items-center justify-between">
           <div>
             <p className="text-sm font-semibold text-card-foreground">Availability</p>
-            <p className="text-xs text-muted-foreground">{active ? "You'll receive load broadcasts" : "Top up and go active"}</p>
+            <p className="text-xs text-muted-foreground">{active ? "You can accept live broadcasts" : "Switch on to accept broadcasts"}</p>
           </div>
           <button onClick={toggleActive} className={`relative h-7 w-12 rounded-full transition ${active ? "bg-success" : "bg-muted"}`}>
             <span className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition ${active ? "left-5" : "left-0.5"}`} />
           </button>
+        </Panel>
+
+        <Panel className="space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-bold text-card-foreground">Broadcast load board</p>
+              <p className="text-xs text-muted-foreground">Showing open {tier.label.toLowerCase()} requests.</p>
+            </div>
+            <button onClick={() => void loadBroadcasts(size)} className="flex items-center gap-1 rounded-lg bg-secondary px-3 py-2 text-xs font-semibold text-card-foreground">
+              <RefreshCw className={`h-3.5 w-3.5 ${loadingLoads ? "animate-spin" : ""}`} /> Refresh
+            </button>
+          </div>
+
+          {!active && <div className="rounded-xl bg-warning/10 p-3 text-xs text-muted-foreground">Go active to accept requests. You can still preview broadcasts.</div>}
+
+          {loadingLoads ? (
+            <div className="rounded-xl bg-secondary p-4 text-center text-sm text-muted-foreground">Loading broadcasts...</div>
+          ) : openLoads.length === 0 ? (
+            <div className="rounded-xl bg-secondary p-4 text-center text-sm text-muted-foreground">No open broadcasts for this truck size yet.</div>
+          ) : (
+            <div className="space-y-3">
+              {openLoads.map((load) => (
+                <div key={load.id} className="rounded-2xl border border-border bg-secondary p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-bold text-card-foreground">P{load.offer} · {load.km} km</p>
+                      <p className="text-[11px] uppercase tracking-wider text-muted-foreground">{load.id}</p>
+                    </div>
+                    <span className="rounded-full bg-primary/10 px-2 py-1 text-[10px] font-bold text-primary">{load.status}</span>
+                  </div>
+                  <div className="mt-3 space-y-2 text-xs text-muted-foreground">
+                    <div className="flex gap-2"><MapPin className="h-4 w-4 text-success" /><span>{load.pickup}</span></div>
+                    <div className="flex gap-2"><Navigation className="h-4 w-4 text-primary" /><span>{load.dropoff}</span></div>
+                    {load.load && <div className="flex gap-2"><Truck className="h-4 w-4 text-muted-foreground" /><span>{load.load}</span></div>}
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    <a href={mapsDirectionsUrl(load.pickup, load.dropoff)} target="_blank" rel="noreferrer" className="rounded-xl border border-border bg-card py-2 text-center text-xs font-semibold text-card-foreground">
+                      Open route
+                    </a>
+                    <button onClick={() => void acceptBroadcast(load)} disabled={!active || acceptingId === load.id} className="flex items-center justify-center gap-1 rounded-xl bg-primary py-2 text-xs font-semibold text-primary-foreground disabled:opacity-50">
+                      <CheckCircle2 className="h-3.5 w-3.5" /> {acceptingId === load.id ? "Accepting..." : "Accept load"}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </Panel>
 
         <Panel>

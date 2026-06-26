@@ -4,6 +4,7 @@ import { User, MessageCircle, Truck, ShieldCheck, LogOut, ChevronRight } from "l
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { fetchProfile, localUser, type ProfileRecord } from "@/lib/supabase";
+import { safeStorageRemove } from "@/lib/safe-storage";
 
 export const Route = createFileRoute("/account")({
   component: Account,
@@ -28,8 +29,8 @@ function Account() {
   }
 
   function signOut() {
-    localStorage.removeItem("vanlink_user");
-    localStorage.removeItem("vanlink_trip");
+    safeStorageRemove("vanlink_user");
+    safeStorageRemove("vanlink_trip");
     setProfile(null);
     toast.success("Signed out");
   }
@@ -42,15 +43,26 @@ function Account() {
     <AppShell title="Account">
       <div className="space-y-4">
         <Panel className="flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full" style={{ background: "var(--gradient-primary)" }}>
+          <div
+            className="flex h-12 w-12 items-center justify-center rounded-full"
+            style={{ background: "var(--gradient-primary)" }}
+          >
             <User className="h-6 w-6 text-white" />
           </div>
           <div className="flex-1">
             <p className="text-sm font-semibold text-card-foreground">{name}</p>
-            <p className="text-xs text-muted-foreground">{phone} · {role}</p>
+            <p className="text-xs text-muted-foreground">
+              {phone} · {role}
+            </p>
           </div>
           {!session && (
-            <Link to="/signup" search={{ role: "client" }} className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground">Sign in</Link>
+            <Link
+              to="/signup"
+              search={{ role: "client" }}
+              className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground"
+            >
+              Sign in
+            </Link>
           )}
         </Panel>
 
@@ -73,7 +85,17 @@ function Account() {
   );
 }
 
-function Item({ icon: Icon, label, to, href }: { icon: typeof User; label: string; to?: string; href?: string }) {
+function Item({
+  icon: Icon,
+  label,
+  to,
+  href,
+}: {
+  icon: typeof User;
+  label: string;
+  to?: string;
+  href?: string;
+}) {
   const inner = (
     <div className="flex items-center gap-3 border-b border-border px-4 py-3.5 text-card-foreground last:border-b-0">
       <Icon className="h-4 w-4 text-primary" />

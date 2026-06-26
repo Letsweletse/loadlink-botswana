@@ -4,9 +4,12 @@ import { IdCard, Mail, MessageCircle, Phone, ShieldCheck, Truck, User } from "lu
 import { useState } from "react";
 import { toast } from "sonner";
 import { upsertProfile } from "@/lib/supabase";
+import { safeStorageSet } from "@/lib/safe-storage";
 
 export const Route = createFileRoute("/signup")({
-  validateSearch: (s: Record<string, unknown>) => ({ role: (s.role as "client" | "driver") ?? "client" }),
+  validateSearch: (s: Record<string, unknown>) => ({
+    role: (s.role as "client" | "driver") ?? "client",
+  }),
   component: SignUp,
 });
 
@@ -62,12 +65,14 @@ function SignUp() {
           : null,
       };
 
-      localStorage.setItem("vanlink_user", JSON.stringify(expandedPayload));
+      safeStorageSet("vanlink_user", JSON.stringify(expandedPayload));
       toast.success("Registration saved successfully");
       navigate({ to: isDriver ? "/driver" : "/client" });
     } catch (error) {
       console.error(error);
-      toast.error("Could not create account", { description: "Please check your connection and try again." });
+      toast.error("Could not create account", {
+        description: "Please check your connection and try again.",
+      });
     } finally {
       setSaving(false);
     }
@@ -83,7 +88,8 @@ function SignUp() {
           </span>
           <h1 className="mt-3 text-2xl font-bold text-foreground">Create your LoadLink account</h1>
           <p className="mt-1 text-sm text-foreground/70">
-            Register with your ID, WhatsApp number and Gmail so LoadLink can verify clients and drivers properly.
+            Register with your ID, WhatsApp number and Gmail so LoadLink can verify clients and
+            drivers properly.
           </p>
         </div>
 
@@ -130,7 +136,12 @@ function SignUp() {
 
             <Field label="Cellphone / WhatsApp number">
               <IconInput icon={Phone}>
-                <input required value={phone} onChange={(e) => setPhone(e.target.value)} className="input-mobile" />
+                <input
+                  required
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  className="input-mobile"
+                />
               </IconInput>
             </Field>
 
@@ -151,11 +162,18 @@ function SignUp() {
               <div className="space-y-4 rounded-2xl bg-secondary p-4">
                 <div className="flex items-center gap-2">
                   <ShieldCheck className="h-4 w-4 text-success" />
-                  <h2 className="text-sm font-bold text-card-foreground">Driver and truck verification</h2>
+                  <h2 className="text-sm font-bold text-card-foreground">
+                    Driver and truck verification
+                  </h2>
                 </div>
 
                 <Field label="Truck size">
-                  <select required value={truckSize} onChange={(e) => setTruckSize(e.target.value)} className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm text-card-foreground outline-none focus:border-primary">
+                  <select
+                    required
+                    value={truckSize}
+                    onChange={(e) => setTruckSize(e.target.value)}
+                    className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm text-card-foreground outline-none focus:border-primary"
+                  >
                     <option value="mini">Mini van / under 2 tons</option>
                     <option value="medium">Medium truck / 2–5 tons</option>
                     <option value="big">Big truck / 5+ tons</option>
@@ -163,15 +181,32 @@ function SignUp() {
                 </Field>
 
                 <Field label="Vehicle plate number">
-                  <input required value={plateNumber} onChange={(e) => setPlateNumber(e.target.value.toUpperCase())} placeholder="e.g. B123ABC" className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm text-card-foreground outline-none focus:border-primary" />
+                  <input
+                    required
+                    value={plateNumber}
+                    onChange={(e) => setPlateNumber(e.target.value.toUpperCase())}
+                    placeholder="e.g. B123ABC"
+                    className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm text-card-foreground outline-none focus:border-primary"
+                  />
                 </Field>
 
                 <Field label="Licence disc expiry date">
-                  <input required type="date" value={licenceDiscExpiry} onChange={(e) => setLicenceDiscExpiry(e.target.value)} className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm text-card-foreground outline-none focus:border-primary" />
+                  <input
+                    required
+                    type="date"
+                    value={licenceDiscExpiry}
+                    onChange={(e) => setLicenceDiscExpiry(e.target.value)}
+                    className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm text-card-foreground outline-none focus:border-primary"
+                  />
                 </Field>
 
                 <Field label="BA permit status">
-                  <select required value={baPermit} onChange={(e) => setBaPermit(e.target.value)} className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm text-card-foreground outline-none focus:border-primary">
+                  <select
+                    required
+                    value={baPermit}
+                    onChange={(e) => setBaPermit(e.target.value)}
+                    className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm text-card-foreground outline-none focus:border-primary"
+                  >
                     <option value="valid">Valid BA permit</option>
                     <option value="pending">Application pending</option>
                     <option value="not_available">Not available yet</option>
@@ -179,11 +214,23 @@ function SignUp() {
                 </Field>
 
                 <Field label="Botswana licence code">
-                  <input required value={licenceCode} onChange={(e) => setLicenceCode(e.target.value.toUpperCase())} placeholder="e.g. B, C1, C, EC" className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm text-card-foreground outline-none focus:border-primary" />
+                  <input
+                    required
+                    value={licenceCode}
+                    onChange={(e) => setLicenceCode(e.target.value.toUpperCase())}
+                    placeholder="e.g. B, C1, C, EC"
+                    className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm text-card-foreground outline-none focus:border-primary"
+                  />
                 </Field>
 
                 <Field label="Driver licence number">
-                  <input required value={licenceNumber} onChange={(e) => setLicenceNumber(e.target.value)} placeholder="Enter licence number" className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm text-card-foreground outline-none focus:border-primary" />
+                  <input
+                    required
+                    value={licenceNumber}
+                    onChange={(e) => setLicenceNumber(e.target.value)}
+                    placeholder="Enter licence number"
+                    className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm text-card-foreground outline-none focus:border-primary"
+                  />
                 </Field>
               </div>
             )}
@@ -209,7 +256,8 @@ function SignUp() {
         </Panel>
 
         <p className="text-center text-xs text-foreground/60">
-          Driver details are captured for onboarding review. Full document upload and permanent driver verification will be connected next.
+          Driver details are captured for onboarding review. Full document upload and permanent
+          driver verification will be connected next.
         </p>
       </div>
     </AppShell>
@@ -219,7 +267,9 @@ function SignUp() {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</span>
+      <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        {label}
+      </span>
       {children}
     </label>
   );

@@ -3,7 +3,7 @@ import { AppShell, Panel } from "@/components/AppShell";
 import { TRUCK_TIERS, type TruckSize } from "@/lib/vanlink";
 import { ORANGE_MONEY_PAY_TO_NUMBER, orangeMoneyPaymentPrompt } from "@/lib/payments";
 import { Truck, Wallet, BadgeCheck, FileText, AlertCircle } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   createPaymentRequest,
@@ -33,11 +33,7 @@ function DriverHub() {
   const [saving, setSaving] = useState(false);
   const tier = TRUCK_TIERS[size];
 
-  useEffect(() => {
-    void loadDriverData();
-  }, []);
-
-  async function loadDriverData() {
+  const loadDriverData = useCallback(async () => {
     if (!user?.phone) return;
     try {
       const [trucks, txs] = await Promise.all([
@@ -61,7 +57,11 @@ function DriverHub() {
         description: "Please refresh and try again.",
       });
     }
-  }
+  }, [user?.phone]);
+
+  useEffect(() => {
+    void loadDriverData();
+  }, [loadDriverData]);
 
   const balance = useMemo(
     () => wallet.reduce((sum, tx) => sum + Number(tx.amount || 0), 0),

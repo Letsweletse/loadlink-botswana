@@ -18,6 +18,11 @@ type BeforeInstallPromptEvent = Event & {
 };
 
 function isStandaloneApp() {
+  if (typeof window === "undefined") return false;
+  const standaloneNavigator =
+    (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
+  const standaloneMedia = window.matchMedia?.("(display-mode: standalone)").matches === true;
+  return standaloneMedia || standaloneNavigator;
   try {
     if (typeof window === "undefined") return false;
     const nav = window.navigator as Navigator & { standalone?: boolean };
@@ -84,7 +89,9 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
       return;
     }
 
-    alert("To install Van-Link, open your browser menu and choose Install app or Add to Home Screen.");
+    alert(
+      "To install Van-Link, open your browser menu and choose Install app or Add to Home Screen.",
+    );
   }
 
   function dismissInstall() {
@@ -98,12 +105,21 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
         <header className="sticky top-0 z-20 border-b border-[var(--color-border-on-navy)] bg-background/85 backdrop-blur">
           <div className="flex items-center gap-3 px-4 py-3">
             <Link to="/" className="flex items-center gap-2">
+              <img
+                src="/icon.svg"
+                alt="Van-Link"
+                className="h-9 w-9 rounded-lg bg-white object-cover p-0.5"
+              />
               <img src={HOSTED_LOGO_URL} alt="Van-Link" className="h-9 w-9 rounded-lg bg-white object-cover p-0.5" />
               <span className="text-base font-bold tracking-tight text-foreground">
                 <span className="text-primary-glow">Van</span>-Link
               </span>
             </Link>
-            {title && <span className="ml-auto text-xs font-medium uppercase tracking-wider text-foreground/60">{title}</span>}
+            {title && (
+              <span className="ml-auto text-xs font-medium uppercase tracking-wider text-foreground/60">
+                {title}
+              </span>
+            )}
           </div>
           <nav className="hidden px-4 pb-3 sm:block">
             <ul className="grid grid-cols-5 gap-1.5">
@@ -135,13 +151,26 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
                   <Download className="h-5 w-5" />
                 </div>
                 <div className="flex-1">
+                  <p className="text-sm font-bold">Install Van-Link</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Add the app to your phone for faster booking and tracking.
+                  </p>
+                  <button
+                    onClick={installApp}
+                    className="mt-3 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground"
+                  >
+                    Install app
                   <p className="text-base font-extrabold">Install Van-Link app</p>
                   <p className="mt-1 text-xs leading-5 text-muted-foreground">Get faster request, driver broadcast board and tracking from your home screen.</p>
                   <button onClick={installApp} className="mt-3 w-full rounded-xl bg-primary px-3 py-3 text-sm font-extrabold text-primary-foreground">
                     Install app now
                   </button>
                 </div>
-                <button onClick={dismissInstall} aria-label="Hide install prompt" className="rounded-lg p-1 text-muted-foreground hover:bg-secondary">
+                <button
+                  onClick={dismissInstall}
+                  aria-label="Hide install prompt"
+                  className="rounded-lg p-1 text-muted-foreground hover:bg-secondary"
+                >
                   <X className="h-4 w-4" />
                 </button>
               </div>
@@ -172,6 +201,13 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
 }
 
 export function Panel({ children, className = "" }: { children: ReactNode; className?: string }) {
+  return (
+    <section
+      className={`rounded-2xl bg-card p-4 text-card-foreground shadow-[var(--shadow-card)] vl-fade-in ${className}`}
+    >
+      {children}
+    </section>
+  );
   return <section className={`rounded-2xl bg-card p-4 text-card-foreground shadow-[var(--shadow-card)] vl-fade-in ${className}`}>{children}</section>;
 }
 
@@ -183,7 +219,10 @@ export function Chip({ active, children, onClick }: { active?: boolean; children
   );
 }
 
-export function PrimaryButton({ children, ...rest }: React.ButtonHTMLAttributes<HTMLButtonElement>) {
+export function PrimaryButton({
+  children,
+  ...rest
+}: React.ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
     <button {...rest} className={`w-full rounded-xl px-4 py-3 text-sm font-semibold text-primary-foreground shadow-[var(--shadow-elegant)] transition active:scale-[0.99] disabled:opacity-40 ${rest.className ?? ""}`} style={{ background: "var(--gradient-primary)" }}>
       {children}

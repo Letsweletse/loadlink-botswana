@@ -1,3 +1,22 @@
+const CACHE_NAME = "vanlink-pwa-v6";
+const APP_SHELL = ["/", "/manifest.webmanifest", "/icon.svg"];
+
+async function cacheAppShell() {
+  const cache = await caches.open(CACHE_NAME);
+  await Promise.allSettled(APP_SHELL.map((url) => cache.add(url)));
+}
+
+async function clearOldCaches() {
+  const keys = await caches.keys();
+  await Promise.all(
+    keys
+      .filter((key) => key.startsWith("vanlink-pwa-") && key !== CACHE_NAME)
+      .map((key) => caches.delete(key)),
+  );
+}
+
+self.addEventListener("install", (event) => {
+  event.waitUntil(cacheAppShell());
 const CACHE_NAME = 'vanlink-pwa-v9';
 const APP_SHELL = ['/', '/manifest.webmanifest'];
 
@@ -6,27 +25,42 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
-self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches
-      .keys()
-      .then((keys) => Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))))
-      .then(() => self.clients.claim()),
-  );
+self.addEventListener("activate", (event) => {
+  event.waitUntil(clearOldCaches().then(() => self.clients.claim()));
 });
 
-self.addEventListener('fetch', (event) => {
-  if (event.request.method !== 'GET') return;
+self.addEventListener("message", (event) => {
+  if (event.data?.type === "SKIP_WAITING") self.skipWaiting();
+});
+
+self.addEventListener("fetch", (event) => {
+  if (event.request.method !== "GET") return;
 
   const requestUrl = new URL(event.request.url);
   if (requestUrl.origin !== self.location.origin) return;
 
-  const isNavigation = event.request.mode === 'navigate';
-
-  if (isNavigation) {
+  if (event.request.mode === "navigate") {
     event.respondWith(
       fetch(event.request, { cache: 'no-store' })
         .then((response) => {
+          const clone = response.clone();
+          caches
+            .open(CACHE_NAME)
+            .then((cache) => cache.put("/", clone))
+            .catch(() => null);
+          return response;
+        })
+        .catch(async () => {
+          const cachedShell = await caches.match("/");
+          return (
+            cachedShell ||
+            new Response("Van-Link is offline. Please refresh when your network returns.", {
+              headers: { "Content-Type": "text/plain; charset=utf-8" },
+              status: 503,
+              statusText: "Service Unavailable",
+            })
+          );
+        }),
           if (response.ok) {
             const clone = response.clone();
             caches.open(CACHE_NAME).then((cache) => cache.put('/', clone)).catch(() => null);
@@ -43,19 +77,22 @@ self.addEventListener('fetch', (event) => {
       .then((response) => {
         if (response.ok && response.status === 200) {
           const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone)).catch(() => null);
+          caches
+            .open(CACHE_NAME)
+            .then((cache) => cache.put(event.request, clone))
+            .catch(() => null);
         }
         return response;
       })
-      .catch(() =>
-        caches.match(event.request).then(
-          (cached) =>
-            cached ||
-            new Response('', {
-              status: 503,
-              statusText: 'Service Unavailable',
-            }),
-        ),
-      ),
+      .catch(async () => {
+        const cached = await caches.match(event.request);
+        return (
+          cached ||
+          new Response("", {
+            status: 503,
+            statusText: "Service Unavailable",
+          })
+        );
+      }),
   );
 });

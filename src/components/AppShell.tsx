@@ -16,13 +16,19 @@ type BeforeInstallPromptEvent = Event & {
 };
 
 function isStandaloneApp() {
-  if (typeof window === "undefined") return false;
-  return window.matchMedia("(display-mode: standalone)").matches || (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
+  try {
+    if (typeof window === "undefined") return false;
+    const nav = window.navigator as Navigator & { standalone?: boolean };
+    const standaloneMatch = typeof window.matchMedia === "function" ? window.matchMedia("(display-mode: standalone)").matches : false;
+    return standaloneMatch || nav.standalone === true;
+  } catch {
+    return false;
+  }
 }
 
 function safeStorageGet(key: string) {
   try {
-    if (typeof window === "undefined") return null;
+    if (typeof window === "undefined" || !window.localStorage) return null;
     return window.localStorage.getItem(key);
   } catch {
     return null;
@@ -31,7 +37,7 @@ function safeStorageGet(key: string) {
 
 function safeStorageSet(key: string, value: string) {
   try {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined" || !window.localStorage) return;
     window.localStorage.setItem(key, value);
   } catch {
     // Private or restricted mobile browsers can block localStorage.

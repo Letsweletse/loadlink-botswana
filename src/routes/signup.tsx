@@ -35,6 +35,7 @@ function SignUp() {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+
     if (!otpSent) {
       setOtpSent(true);
       toast("Verification code sent", { description: `WhatsApp/Gmail check for ${phone}` });
@@ -42,40 +43,45 @@ function SignUp() {
     }
 
     setSaving(true);
-    try {
-      const normalizedRole = isDriver ? "driver" : "customer";
-      await upsertProfile({ name, phone, role: normalizedRole });
 
-      const expandedPayload = {
-        name,
-        idNumber,
+    const normalizedRole = isDriver ? "driver" : "customer";
+    const expandedPayload = {
+      name,
+      idNumber,
+      phone,
+      email,
+      role,
+      verifiedAt: new Date().toISOString(),
+      driver: isDriver
+        ? {
+            truckSize,
+            plateNumber,
+            licenceDiscExpiry,
+            baPermit,
+            licenceCode,
+            licenceNumber,
+          }
+        : null,
+    };
+
+    safeStorageSet("vanlink_user", JSON.stringify(expandedPayload));
+    safeStorageSet(
+      "vanlink_profile",
+      JSON.stringify({
+        name: name.trim() || "Van-Link user",
         phone,
         email,
-        role,
-        verifiedAt: new Date().toISOString(),
-        driver: isDriver
-          ? {
-              truckSize,
-              plateNumber,
-              licenceDiscExpiry,
-              baPermit,
-              licenceCode,
-              licenceNumber,
-            }
-          : null,
-      };
+        role: normalizedRole,
+      }),
+    );
 
-      safeStorageSet("vanlink_user", JSON.stringify(expandedPayload));
-      toast.success("Registration saved successfully");
-      navigate({ to: isDriver ? "/driver" : "/client" });
-    } catch (error) {
-      console.error(error);
-      toast.error("Could not create account", {
-        description: "Please check your connection and try again.",
-      });
-    } finally {
-      setSaving(false);
-    }
+    toast.success("Registration saved successfully");
+    setSaving(false);
+    void navigate({ to: isDriver ? "/driver" : "/client" });
+
+    void upsertProfile({ name, phone, email, role: normalizedRole }).catch((error) => {
+      console.warn("Profile will sync when the service is available", error);
+    });
   };
 
   return (

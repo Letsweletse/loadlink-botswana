@@ -9,7 +9,7 @@
   ],
   "headers": [
     {
-      "source": "/",
+      "source": "/((?!api|assets|manifest.webmanifest|icon.svg|sw.js).*)",
       "headers": [
         { "key": "Cache-Control", "value": "no-store, max-age=0" }
       ]

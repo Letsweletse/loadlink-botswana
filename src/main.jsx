@@ -7,43 +7,39 @@ import "./styles.css";
 
 const root = document.getElementById("root");
 
-function registerServiceWorker() {
-  if (!("serviceWorker" in navigator) || !import.meta.env.PROD) return;
+function cleanupStaleAppCaches() {
+  if (!import.meta.env.PROD) return;
 
   window.addEventListener("load", () => {
-    let refreshing = false;
-    navigator.serviceWorker.addEventListener("controllerchange", () => {
-      if (refreshing) return;
-      refreshing = true;
-      window.location.reload();
-    });
-
-    navigator.serviceWorker
-      .register("/sw.js")
-      .then((registration) => {
-        registration.update().catch(() => null);
-
-        if (registration.waiting) {
-          registration.waiting.postMessage({ type: "SKIP_WAITING" });
-        }
-
-        registration.addEventListener("updatefound", () => {
-          const worker = registration.installing;
-          if (!worker) return;
-          worker.addEventListener("statechange", () => {
-            if (worker.state === "installed" && navigator.serviceWorker.controller) {
-              worker.postMessage({ type: "SKIP_WAITING" });
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker
+        .getRegistrations()
+        .then((registrations) => {
+          registrations.forEach((registration) => {
+            if (registration.scope.startsWith(window.location.origin)) {
+              registration.update().catch(() => null);
             }
           });
-        });
-      })
-      .catch((error) => {
-        console.warn("Van-Link service worker registration failed", error);
-      });
+        })
+        .catch(() => null);
+    }
+
+    if ("caches" in window) {
+      caches
+        .keys()
+        .then((keys) =>
+          Promise.all(
+            keys
+              .filter((key) => key.startsWith("vanlink-pwa-"))
+              .map((key) => caches.delete(key)),
+          ),
+        )
+        .catch(() => null);
+    }
   });
 }
 
-registerServiceWorker();
+cleanupStaleAppCaches();
 
 if (root) {
   const router = getRouter();

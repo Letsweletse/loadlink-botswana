@@ -207,6 +207,10 @@
     color: var(--color-foreground);
   }
 
+  header a[href="/"] > img:first-of-type {
+    display: none;
+  }
+
   @keyframes vl-fade-in {
     from {
       opacity: 0;

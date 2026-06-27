@@ -1,26 +1,19 @@
-const CACHE_NAME = "vanlink-pwa-v10";
-const APP_SHELL = ["/", "/manifest.webmanifest"];
-
-async function cacheAppShell() {
-  const cache = await caches.open(CACHE_NAME);
-  await Promise.allSettled(
-    APP_SHELL.map((url) =>
-      cache.add(url).catch(() => null),
-    ),
-  );
-}
+const CACHE_PREFIX = "vanlink-pwa-";
+const CACHE_NAME = "vanlink-pwa-v11";
 
 async function clearOldCaches() {
+  if (!("caches" in self)) return;
+
   const keys = await caches.keys();
   await Promise.all(
     keys
-      .filter((key) => key.startsWith("vanlink-pwa-") && key !== CACHE_NAME)
+      .filter((key) => key.startsWith(CACHE_PREFIX) && key !== CACHE_NAME)
       .map((key) => caches.delete(key)),
   );
 }
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(cacheAppShell());
+  event.waitUntil(clearOldCaches());
   self.skipWaiting();
 });
 
@@ -42,47 +35,13 @@ self.addEventListener("fetch", (event) => {
 
   if (event.request.mode === "navigate") {
     event.respondWith(
-      fetch(event.request, { cache: "no-store" })
-        .then((response) => {
-          if (response.ok) {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put("/", clone)).catch(() => null);
-          }
-          return response;
-        })
-        .catch(async () => {
-          const cachedShell = await caches.match("/");
-          return (
-            cachedShell ||
-            new Response("Van-Link is offline. Please refresh when your network returns.", {
-              headers: { "Content-Type": "text/plain; charset=utf-8" },
-              status: 503,
-              statusText: "Service Unavailable",
-            })
-          );
+      fetch(event.request, { cache: "reload" }).catch(() =>
+        new Response("Van-Link is offline. Please refresh when your network returns.", {
+          headers: { "Content-Type": "text/plain; charset=utf-8" },
+          status: 503,
+          statusText: "Service Unavailable",
         }),
+      ),
     );
-    return;
   }
-
-  event.respondWith(
-    fetch(event.request)
-      .then((response) => {
-        if (response.ok && response.status === 200) {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone)).catch(() => null);
-        }
-        return response;
-      })
-      .catch(async () => {
-        const cached = await caches.match(event.request);
-        return (
-          cached ||
-          new Response("", {
-            status: 503,
-            statusText: "Service Unavailable",
-          })
-        );
-      }),
-  );
 });

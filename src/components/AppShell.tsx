@@ -1,6 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Download, Home, Truck, MapPin, User, Package, X } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
+import { BriefcaseBusiness, Home, MapPin, Package, Truck, User } from "lucide-react";
+import { type ReactNode } from "react";
 
 const HOSTED_LOGO_URL =
   "https://res.cloudinary.com/dyfecybo0/image/upload/f_auto,q_auto,w_128,h_128,c_fill/v1782459767/WhatsApp_Image_2026-05-23_at_15.51.54_mzlajs.jpg";
@@ -9,121 +9,40 @@ const TABS = [
   { to: "/", label: "Home", icon: Home },
   { to: "/client", label: "Book", icon: Package },
   { to: "/track", label: "Track", icon: MapPin },
-  { to: "/driver", label: "Drive", icon: Truck },
-  { to: "/account", label: "Me", icon: User },
+  { to: "/driver", label: "Driver", icon: Truck },
+  { to: "/account", label: "Account", icon: User },
 ] as const;
-
-type BeforeInstallPromptEvent = Event & {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
-};
-
-function isStandaloneApp() {
-  try {
-    if (typeof window === "undefined") return false;
-    const nav = window.navigator as Navigator & { standalone?: boolean };
-    const standaloneMatch =
-      typeof window.matchMedia === "function"
-        ? window.matchMedia("(display-mode: standalone)").matches
-        : false;
-    return standaloneMatch || nav.standalone === true;
-  } catch {
-    return false;
-  }
-}
-
-function safeStorageGet(key: string) {
-  try {
-    if (typeof window === "undefined") return null;
-    return window.localStorage.getItem(key);
-  } catch {
-    return null;
-  }
-}
-
-function safeStorageSet(key: string, value: string) {
-  try {
-    if (typeof window === "undefined") return;
-    window.localStorage.setItem(key, value);
-  } catch {
-    // Private or restricted mobile browsers can block localStorage.
-  }
-}
 
 export function AppShell({ children, title }: { children: ReactNode; title?: string }) {
   const { location } = useRouterState();
   const path = location.pathname;
-  const [installEvent, setInstallEvent] = useState<BeforeInstallPromptEvent | null>(null);
-  const [showInstall, setShowInstall] = useState(false);
-
-  useEffect(() => {
-    if (isStandaloneApp() || safeStorageGet("vanlink_install_dismissed") === "true") return;
-
-    const onBeforeInstallPrompt = (event: Event) => {
-      event.preventDefault();
-      setInstallEvent(event as BeforeInstallPromptEvent);
-      setShowInstall(true);
-    };
-
-    window.addEventListener("beforeinstallprompt", onBeforeInstallPrompt);
-
-    const timer = window.setTimeout(() => {
-      if (!isStandaloneApp()) setShowInstall(true);
-    }, 900);
-
-    return () => {
-      window.removeEventListener("beforeinstallprompt", onBeforeInstallPrompt);
-      window.clearTimeout(timer);
-    };
-  }, []);
-
-  async function installApp() {
-    if (installEvent) {
-      await installEvent.prompt();
-      const choice = await installEvent.userChoice.catch(() => null);
-      if (choice?.outcome === "accepted") {
-        setShowInstall(false);
-        setInstallEvent(null);
-      }
-      return;
-    }
-
-    alert("To install Van-Link, open your browser menu and choose Install app or Add to Home Screen.");
-  }
-
-  function dismissInstall() {
-    safeStorageSet("vanlink_install_dismissed", "true");
-    setShowInstall(false);
-  }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="mx-auto flex min-h-screen max-w-[760px] flex-col">
-        <header className="sticky top-0 z-20 border-b border-[var(--color-border-on-navy)] bg-background/85 backdrop-blur">
-          <div className="flex items-center gap-3 px-4 py-3">
-            <Link to="/" className="flex items-center gap-2">
-              <img
-                src="/icon.svg"
-                alt="Van-Link"
-                className="h-9 w-9 rounded-lg bg-white object-cover p-0.5"
-              />
+    <div className="min-h-screen bg-background text-foreground">
+      <div className="mx-auto flex min-h-screen max-w-[820px] flex-col">
+        <header className="sticky top-0 z-20 border-b border-border/70 bg-card/95 backdrop-blur-xl">
+          <div className="flex items-center gap-3 px-4 py-3.5 sm:px-6">
+            <Link to="/" className="flex min-w-0 items-center gap-3">
               <img
                 src={HOSTED_LOGO_URL}
-                alt="Van-Link"
-                className="h-9 w-9 rounded-lg bg-white object-cover p-0.5"
+                alt="VanLink"
+                className="h-10 w-10 rounded-md border border-border bg-white object-cover"
               />
-              <span className="text-base font-bold tracking-tight text-foreground">
-                <span className="text-primary-glow">Van</span>-Link
-              </span>
+              <div className="leading-tight">
+                <span className="block text-[15px] font-black tracking-[-0.02em] text-card-foreground">VanLink</span>
+                <span className="block text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                  Botswana Logistics
+                </span>
+              </div>
             </Link>
             {title && (
-              <span className="ml-auto text-xs font-medium uppercase tracking-wider text-foreground/60">
+              <span className="ml-auto rounded-full border border-border bg-secondary px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
                 {title}
               </span>
             )}
           </div>
-          <nav className="hidden px-4 pb-3 sm:block">
-            <ul className="grid grid-cols-5 gap-1.5">
+          <nav className="hidden px-6 pb-3 sm:block">
+            <ul className="grid grid-cols-5 gap-2">
               {TABS.map((t) => {
                 const Icon = t.icon;
                 const active = path === t.to || (t.to !== "/" && path.startsWith(t.to));
@@ -131,10 +50,10 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
                   <li key={t.to}>
                     <Link
                       to={t.to}
-                      className={`flex items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-medium transition ${
+                      className={`flex items-center justify-center gap-2 rounded-md border px-3 py-2 text-xs font-bold transition-all duration-200 ${
                         active
-                          ? "bg-primary text-primary-foreground"
-                          : "text-foreground/70 hover:bg-white/5 hover:text-foreground"
+                          ? "border-primary bg-primary text-primary-foreground shadow-[var(--shadow-card)]"
+                          : "border-border bg-card text-muted-foreground hover:border-primary/25 hover:text-card-foreground"
                       }`}
                     >
                       <Icon className="h-3.5 w-3.5" /> {t.label}
@@ -146,41 +65,9 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
           </nav>
         </header>
 
-        <main className="flex-1 px-4 pb-28 pt-4 sm:px-6">
-          {showInstall && !isStandaloneApp() && (
-            <section className="mb-4 rounded-3xl border border-primary/30 bg-gradient-to-br from-primary/15 via-card to-card p-4 text-card-foreground shadow-[0_18px_60px_rgba(0,0,0,.22)]">
-              <div className="flex items-start gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-[var(--shadow-card)]">
-                  <Download className="h-5 w-5" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-base font-extrabold">Install Van-Link app</p>
-                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                    Get faster requests, driver broadcast board and tracking from your home screen.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={installApp}
-                    className="mt-3 w-full rounded-xl bg-primary px-3 py-3 text-sm font-extrabold text-primary-foreground"
-                  >
-                    Install app now
-                  </button>
-                </div>
-                <button
-                  type="button"
-                  onClick={dismissInstall}
-                  aria-label="Hide install prompt"
-                  className="rounded-lg p-1 text-muted-foreground hover:bg-secondary"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            </section>
-          )}
-          {children}
-        </main>
+        <main className="flex-1 px-4 pb-28 pt-5 sm:px-6">{children}</main>
 
-        <nav className="fixed inset-x-0 bottom-0 z-30 mx-auto max-w-[760px] border-t border-[var(--color-border-on-navy)] bg-background/95 backdrop-blur sm:hidden">
+        <nav className="fixed inset-x-0 bottom-0 z-30 mx-auto max-w-[820px] border-t border-border bg-card/98 backdrop-blur-xl sm:hidden">
           <ul className="grid grid-cols-5">
             {TABS.map((t) => {
               const Icon = t.icon;
@@ -189,11 +76,11 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
                 <li key={t.to}>
                   <Link
                     to={t.to}
-                    className={`flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium transition ${
-                      active ? "text-primary-glow" : "text-foreground/60"
+                    className={`flex flex-col items-center gap-1 py-2.5 text-[10px] font-bold transition-colors ${
+                      active ? "text-primary" : "text-muted-foreground"
                     }`}
                   >
-                    <Icon className={`h-5 w-5 ${active ? "scale-110" : ""} transition`} />
+                    <Icon className="h-4 w-4" />
                     {t.label}
                   </Link>
                 </li>
@@ -208,9 +95,7 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
 
 export function Panel({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
-    <section
-      className={`rounded-2xl bg-card p-4 text-card-foreground shadow-[var(--shadow-card)] vl-fade-in ${className}`}
-    >
+    <section className={`rounded-xl border border-border bg-card p-4 text-card-foreground shadow-[var(--shadow-card)] vl-fade-in ${className}`}>
       {children}
     </section>
   );
@@ -229,8 +114,8 @@ export function Chip({
     <button
       type="button"
       onClick={onClick}
-      className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition ${
-        active ? "bg-primary text-primary-foreground shadow-[var(--shadow-elegant)]" : "bg-chip text-chip-foreground hover:brightness-95"
+      className={`shrink-0 rounded-md border px-3 py-2 text-xs font-bold transition-colors ${
+        active ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-card-foreground hover:border-primary/30"
       }`}
     >
       {children}
@@ -238,17 +123,13 @@ export function Chip({
   );
 }
 
-export function PrimaryButton({
-  children,
-  ...rest
-}: React.ButtonHTMLAttributes<HTMLButtonElement>) {
+export function PrimaryButton({ children, ...rest }: React.ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
     <button
       {...rest}
-      className={`w-full rounded-xl px-4 py-3 text-sm font-semibold text-primary-foreground shadow-[var(--shadow-elegant)] transition active:scale-[0.99] disabled:opacity-40 ${
+      className={`w-full rounded-md bg-primary px-4 py-3 text-sm font-black text-primary-foreground shadow-[var(--shadow-elegant)] transition-all duration-200 hover:-translate-y-0.5 disabled:translate-y-0 disabled:opacity-45 ${
         rest.className ?? ""
       }`}
-      style={{ background: "var(--gradient-primary)", ...rest.style }}
     >
       {children}
     </button>

@@ -4,9 +4,7 @@ import { MapPin, Phone, MessageCircle, Navigation, ExternalLink, RefreshCw } fro
 import { useEffect, useState } from "react";
 import { fetchLoad, type LoadRecord } from "@/lib/supabase";
 
-export const Route = createFileRoute("/track")({
-  component: Track,
-});
+export const Route = createFileRoute("/track")({ component: Track });
 
 function mapsSearchUrl(value: string) {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(value)}`;
@@ -31,11 +29,30 @@ function safeStorageGet(key: string) {
 
 function safeStorageRemove(key: string) {
   try {
-    if (typeof window === "undefined") return;
-    window.localStorage.removeItem(key);
+    if (typeof window !== "undefined") window.localStorage.removeItem(key);
   } catch {
-    // Restricted mobile browsers can block localStorage.
+    return;
   }
+}
+
+function LiveTrackingBadge() {
+  return (
+    <div
+      className="absolute right-3 top-3 inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-white"
+      style={{
+        background: "linear-gradient(135deg, #7f1d1d, #dc2626)",
+        borderColor: "rgba(252,165,165,.9)",
+        boxShadow: "0 0 0 1px rgba(255,255,255,.12), 0 0 18px rgba(239,68,68,.8)",
+        animation: "liveTrackingPulse 1.6s ease-in-out infinite",
+      }}
+    >
+      <span
+        className="h-2 w-2 rounded-full bg-red-300"
+        style={{ boxShadow: "0 0 10px rgba(252,165,165,1)" }}
+      />
+      LIVE TRACKING
+    </div>
+  );
 }
 
 function Track() {
@@ -52,8 +69,7 @@ function Track() {
     try {
       const raw = safeStorageGet("vanlink_trip");
       cached = raw ? JSON.parse(raw) : null;
-    } catch (error) {
-      console.warn("Invalid saved trip cleared", error);
+    } catch {
       safeStorageRemove("vanlink_trip");
     }
 
@@ -61,32 +77,24 @@ function Track() {
       setLoading(false);
       return;
     }
+
+    const fallback = {
+      id: cached.id,
+      customer: "Customer",
+      phone: "",
+      pickup: cached.pickup || "Pickup",
+      dropoff: cached.dropoff || cached.drop || "Drop-off",
+      category: "mini",
+      km: Number(cached.km || cached.distance || 0),
+      offer: Number(cached.offer || cached.fare || 0),
+      status: "Broadcasting",
+    } as LoadRecord;
+
     try {
       const fresh = await fetchLoad(cached.id);
-      setLoad(fresh || {
-        id: cached.id,
-        customer: "Customer",
-        phone: "",
-        pickup: cached.pickup || "Pickup",
-        dropoff: cached.dropoff || cached.drop || "Drop-off",
-        category: "mini",
-        km: Number(cached.km || cached.distance || 0),
-        offer: Number(cached.offer || cached.fare || 0),
-        status: "Broadcasting",
-      });
-    } catch (error) {
-      console.error(error);
-      setLoad({
-        id: cached.id,
-        customer: "Customer",
-        phone: "",
-        pickup: cached.pickup || "Pickup",
-        dropoff: cached.dropoff || cached.drop || "Drop-off",
-        category: "mini",
-        km: Number(cached.km || cached.distance || 0),
-        offer: Number(cached.offer || cached.fare || 0),
-        status: "Broadcasting",
-      });
+      setLoad(fresh || fallback);
+    } catch {
+      setLoad(fallback);
     } finally {
       setLoading(false);
     }
@@ -98,25 +106,18 @@ function Track() {
     <AppShell title="Live tracking">
       <div className="space-y-4">
         <div className="relative h-[420px] w-full overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--shadow-card)] vl-fade-in">
-          {load ? (
-            <iframe
-              title="Trip route map"
-              src={mapsDirectionsEmbedUrl(load.pickup, load.dropoff)}
-              className="h-full w-full border-0"
-              loading="lazy"
-              referrerPolicy="no-referrer-when-downgrade"
-            />
-          ) : (
-            <iframe
-              title="Van-Link Botswana map"
-              src="https://maps.google.com/maps?q=Gaborone%20Botswana&output=embed"
-              className="h-full w-full border-0"
-              loading="lazy"
-              referrerPolicy="no-referrer-when-downgrade"
-            />
-          )}
-          <div className="absolute left-3 top-3 rounded-full bg-ink px-3 py-1 text-[10px] font-semibold text-white shadow-[var(--shadow-elegant)]">{load?.status || "Waiting"}</div>
-          <button type="button" onClick={() => void loadTrip()} className="absolute right-3 top-3 flex items-center gap-1 rounded-full bg-white px-3 py-1 text-[10px] font-semibold text-ink shadow-[var(--shadow-card)]">
+          <iframe
+            title={load ? "Trip route map" : "VanLink Botswana map"}
+            src={load ? mapsDirectionsEmbedUrl(load.pickup, load.dropoff) : "https://maps.google.com/maps?q=Gaborone%20Botswana&output=embed"}
+            className="h-full w-full border-0"
+            loading="lazy"
+            referrerPolicy="no-referrer-when-downgrade"
+          />
+          <div className="absolute left-3 top-3 rounded-full bg-ink px-3 py-1 text-[10px] font-semibold text-white shadow-[var(--shadow-elegant)]">
+            {load?.status || "Waiting"}
+          </div>
+          <LiveTrackingBadge />
+          <button type="button" onClick={() => void loadTrip()} className="absolute right-3 top-14 flex items-center gap-1 rounded-full bg-white px-3 py-1 text-[10px] font-semibold text-ink shadow-[var(--shadow-card)]">
             <RefreshCw className={`h-3 w-3 ${loading ? "animate-spin" : ""}`} /> Refresh
           </button>
           {load && (
@@ -147,7 +148,6 @@ function Track() {
                 <a href={`https://wa.me/${String(load.driver_phone || "").replace(/\D/g, "")}`} className="flex h-9 w-9 items-center justify-center rounded-full bg-success text-white"><MessageCircle className="h-4 w-4" /></a>
               </div>
             </Panel>
-
             <Panel className="space-y-3 text-sm">
               <a href={mapsSearchUrl(load.pickup)} target="_blank" rel="noreferrer" className="flex items-center gap-3"><MapPin className="h-4 w-4 text-success" /><span className="flex-1 text-card-foreground underline underline-offset-2">{load.pickup}</span></a>
               <div className="ml-2 h-4 border-l-2 border-dashed border-border" />

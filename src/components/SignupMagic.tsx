@@ -1,30 +1,30 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { CheckCircle2, IdCard, Mail, MessageCircle, Phone, ShieldCheck, Truck, User } from "lucide-react";
+import { Camera, CheckCircle2, Mail, Phone, ShieldCheck, Truck, User } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { AppShell, Panel, PrimaryButton } from "@/components/AppShell";
 import { isSupabaseConfigured, supabase, upsertProfile } from "@/lib/supabase";
 import { safeJsonParse, safeStorageGet, safeStorageRemove, safeStorageSet } from "@/lib/safe-storage";
 
-const PENDING_KEY = "vanlink_pending_signup";
-
 type SignupRole = "client" | "driver";
+type Step = "email" | "sent" | "profile" | "done";
 
-type PendingSignup = {
+const PENDING_KEY = "vanlink_pending_signup";
+const PROFILE_KEY = "vanlink_profile";
+const USER_KEY = "vanlink_user";
+
+type SavedProfile = {
   name: string;
-  identity: string;
   phone: string;
   email: string;
-  role: SignupRole;
-  driver: null | {
-    truckSize: string;
-    plateNumber: string;
-    licenceDiscExpiry: string;
-    baPermit: string;
-    licenceCode: string;
-    licenceNumber: string;
-  };
+  role: "customer" | "driver";
+  avatar?: string;
+  verifiedAt?: string;
 };
+
+function normalizeEmail(value: string) {
+  return String(value || "").trim().toLowerCase();
+}
 
 function normalizePhone(value: string) {
   const digits = String(value || "").replace(/\D/g, "");
@@ -33,141 +33,100 @@ function normalizePhone(value: string) {
   return String(value || "").trim();
 }
 
-function normalizeEmail(value: string) {
-  return String(value || "").trim().toLowerCase();
+function roleLabel(role: SignupRole) {
+  return role === "driver" ? "Driver" : "Client";
 }
 
 export function SignupMagic({ role }: { role: SignupRole }) {
   const navigate = useNavigate();
-  const isDriver = role === "driver";
-  const [name, setName] = useState("");
-  const [identity, setIdentity] = useState("");
-  const [phone, setPhone] = useState("+267 ");
-  const [email, setEmail] = useState("");
-  const [linkSent, setLinkSent] = useState(false);
+  const [step, setStep] = useState<Step>("email");
   const [saving, setSaving] = useState(false);
+  const [checking, setChecking] = useState(true);
+  const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("+267 ");
+  const [avatar, setAvatar] = useState("");
 
-  const [truckSize, setTruckSize] = useState("mini");
-  const [plateNumber, setPlateNumber] = useState("");
-  const [licenceDiscExpiry, setLicenceDiscExpiry] = useState("");
-  const [baPermit, setBaPermit] = useState("pending");
-  const [licenceCode, setLicenceCode] = useState("");
-  const [licenceNumber, setLicenceNumber] = useState("");
+  const profileRole: SavedProfile["role"] = role === "driver" ? "driver" : "customer";
+  const dashboardPath = role === "driver" ? "/driver" : "/client";
 
-  function payload(): PendingSignup {
-    return {
-      name: name.trim(),
-      identity: identity.trim(),
-      phone: normalizePhone(phone),
-      email: normalizeEmail(email),
-      role,
-      driver: isDriver
-        ? {
-            truckSize,
-            plateNumber: plateNumber.trim().toUpperCase(),
-            licenceDiscExpiry,
-            baPermit,
-            licenceCode: licenceCode.trim().toUpperCase(),
-            licenceNumber: licenceNumber.trim(),
-          }
-        : null,
-    };
-  }
+  const loadSavedProfile = useCallback(() => {
+    return safeJsonParse<SavedProfile | null>(safeStorageGet(PROFILE_KEY), null);
+  }, []);
 
-  const finish = useCallback(
-    async (saved: PendingSignup) => {
-      const profileRole = saved.role === "driver" ? "driver" : "customer";
-      safeStorageSet(
-        "vanlink_user",
-        JSON.stringify({
-          ...saved,
-          idNumber: saved.identity,
-          verifiedAt: new Date().toISOString(),
-        }),
-      );
-      safeStorageSet(
-        "vanlink_profile",
-        JSON.stringify({
-          name: saved.name || "VanLink user",
-          phone: saved.phone,
-          email: saved.email,
-          role: profileRole,
-        }),
-      );
-      await upsertProfile({ name: saved.name, phone: saved.phone, email: saved.email, role: profileRole }).catch((error) => {
-        console.warn("Profile will sync when the service is available", error);
-      });
-      safeStorageRemove(PENDING_KEY);
-      toast.success("Account verified", {
-        description: saved.role === "driver" ? "Next step: upload your driver documents." : "You can now request a truck.",
-      });
-      void navigate({ to: saved.role === "driver" ? "/driver" : "/client" });
-    },
-    [navigate],
-  );
+  const applyProfile = useCallback((profile: SavedProfile) => {
+    setEmail(profile.email || "");
+    setName(profile.name || "");
+    setPhone(profile.phone || "+267 ");
+    setAvatar(profile.avatar || "");
+  }, []);
 
   useEffect(() => {
-    const pending = safeJsonParse<PendingSignup | null>(safeStorageGet(PENDING_KEY), null);
-    if (pending) {
-      setName(pending.name);
-      setIdentity(pending.identity);
-      setPhone(pending.phone);
-      setEmail(pending.email);
-      setLinkSent(true);
-      if (pending.driver) {
-        setTruckSize(pending.driver.truckSize);
-        setPlateNumber(pending.driver.plateNumber);
-        setLicenceDiscExpiry(pending.driver.licenceDiscExpiry);
-        setBaPermit(pending.driver.baPermit);
-        setLicenceCode(pending.driver.licenceCode);
-        setLicenceNumber(pending.driver.licenceNumber);
-      }
-    }
+    const pending = safeJsonParse<{ email?: string; role?: SignupRole } | null>(safeStorageGet(PENDING_KEY), null);
+    const saved = loadSavedProfile();
 
-    if (!supabase) return;
+    if (pending && pending.email) setEmail(pending.email);
+    if (saved && saved.email) applyProfile(saved);
 
-    supabase.auth.getSession().then(({ data }) => {
-      const saved = safeJsonParse<PendingSignup | null>(safeStorageGet(PENDING_KEY), null);
-      if (data.session?.user && saved) void finish(saved);
-    });
-
-    const { data: listener } = supabase.auth.onAuthStateChange((event) => {
-      if (event !== "SIGNED_IN") return;
-      const saved = safeJsonParse<PendingSignup | null>(safeStorageGet(PENDING_KEY), null);
-      if (saved) void finish(saved);
-    });
-
-    return () => listener.subscription.unsubscribe();
-  }, [finish]);
-
-  async function sendLink() {
-    const saved = payload();
-    if (!saved.email) {
-      toast.error("Email is required", { description: "Enter a valid email address first." });
+    if (!supabase) {
+      setChecking(false);
+      if (saved && saved.email) setStep("done");
       return;
     }
 
-    safeStorageSet(PENDING_KEY, JSON.stringify(saved));
+    supabase.auth.getSession().then(({ data }) => {
+      const userEmail = normalizeEmail(data.session?.user?.email || pending?.email || saved?.email || "");
+      if (userEmail) setEmail(userEmail);
+
+      if (data.session?.user) {
+        if (saved && saved.email === userEmail && saved.name && saved.phone) {
+          applyProfile(saved);
+          setStep("done");
+        } else {
+          setStep("profile");
+        }
+      } else if (pending && pending.email) {
+        setStep("sent");
+      }
+      setChecking(false);
+    });
+
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event !== "SIGNED_IN") return;
+      const signedEmail = normalizeEmail(session?.user?.email || email);
+      if (signedEmail) setEmail(signedEmail);
+      setStep("profile");
+      toast.success("Email verified", { description: "Now complete your VanLink profile." });
+    });
+
+    return () => listener.subscription.unsubscribe();
+  }, [applyProfile, email, loadSavedProfile]);
+
+  async function sendMagicLink() {
+    const cleanEmail = normalizeEmail(email);
+    if (!cleanEmail) {
+      toast.error("Enter your email first");
+      return;
+    }
+
     setSaving(true);
     try {
-      if (!isSupabaseConfigured || !supabase) throw new Error("Verification service is not configured.");
+      if (!isSupabaseConfigured || !supabase) throw new Error("Email login is not configured yet.");
+      safeStorageSet(PENDING_KEY, JSON.stringify({ email: cleanEmail, role }));
       const { error } = await supabase.auth.signInWithOtp({
-        email: saved.email,
+        email: cleanEmail,
         options: {
           shouldCreateUser: true,
           emailRedirectTo: typeof window !== "undefined" ? `${window.location.origin}/signup?role=${role}` : undefined,
-          data: { name: saved.name, phone: saved.phone, role: isDriver ? "driver" : "customer" },
+          data: { role: profileRole },
         },
       });
       if (error) throw error;
-      setPhone(saved.phone);
-      setEmail(saved.email);
-      setLinkSent(true);
-      toast.success("Secure link sent", {
-        description: `Open ${saved.email} and tap Sign in. VanLink will finish automatically.`,
-      });
+      setEmail(cleanEmail);
+      setStep("sent");
+      toast.success("Login link sent", { description: "Open your email and tap Sign in." });
     } catch (error) {
-      toast.error("Could not send sign-in link", {
+      toast.error("Could not send login link", {
         description: error instanceof Error ? error.message : "Please try again.",
       });
     } finally {
@@ -175,199 +134,212 @@ export function SignupMagic({ role }: { role: SignupRole }) {
     }
   }
 
-  async function continueAfterLink() {
+  async function checkLogin() {
     if (!supabase) return;
     setSaving(true);
     try {
-      const saved = safeJsonParse<PendingSignup | null>(safeStorageGet(PENDING_KEY), null);
       const { data } = await supabase.auth.getSession();
-      if (data.session?.user && saved) {
-        await finish(saved);
+      if (data.session?.user) {
+        setEmail(normalizeEmail(data.session.user.email || email));
+        setStep("profile");
         return;
       }
-      toast("Open the email first", {
-        description: "Tap the Sign in button in your email, then come back here.",
-      });
+      toast("Not signed in yet", { description: "Tap Sign in from the email, then come back here." });
     } finally {
       setSaving(false);
     }
   }
 
-  async function submit(event: React.FormEvent) {
-    event.preventDefault();
-    if (linkSent) {
-      await continueAfterLink();
+  function pickAvatar(file: File | null) {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Choose an image file");
       return;
     }
-    await sendLink();
+    const reader = new FileReader();
+    reader.onload = () => setAvatar(String(reader.result || ""));
+    reader.readAsDataURL(file);
+  }
+
+  async function saveProfile(event: React.FormEvent) {
+    event.preventDefault();
+    const cleanName = name.trim();
+    const cleanPhone = normalizePhone(phone);
+    const cleanEmail = normalizeEmail(email);
+
+    if (!cleanName || !cleanPhone || !cleanEmail) {
+      toast.error("Complete your profile", { description: "Name, phone and email are required." });
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const profile: SavedProfile = {
+        name: cleanName,
+        phone: cleanPhone,
+        email: cleanEmail,
+        role: profileRole,
+        avatar,
+        verifiedAt: new Date().toISOString(),
+      };
+
+      safeStorageSet(PROFILE_KEY, JSON.stringify(profile));
+      safeStorageSet(USER_KEY, JSON.stringify({ ...profile, role, profileComplete: true }));
+      safeStorageRemove(PENDING_KEY);
+
+      await upsertProfile({ name: cleanName, phone: cleanPhone, email: cleanEmail, role: profileRole }).catch((error) => {
+        console.warn("Profile will sync later", error);
+      });
+
+      setStep("done");
+      toast.success("You are registered", { description: `Welcome, ${cleanName}.` });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function startOver() {
+    safeStorageRemove(PENDING_KEY);
+    safeStorageRemove(PROFILE_KEY);
+    safeStorageRemove(USER_KEY);
+    if (supabase) await supabase.auth.signOut().catch(() => null);
+    setName("");
+    setPhone("+267 ");
+    setEmail("");
+    setAvatar("");
+    setStep("email");
   }
 
   return (
-    <AppShell title="Sign up">
+    <AppShell title="Account">
       <div className="space-y-4 pb-6">
-        <div className="vl-fade-in">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/70">
-            {isDriver ? <Truck className="h-3.5 w-3.5" /> : <User className="h-3.5 w-3.5" />}
-            {isDriver ? "Driver onboarding" : "Client onboarding"}
+        <div className="vl-fade-in rounded-3xl bg-gradient-to-br from-primary to-accent p-5 text-primary-foreground shadow-[var(--shadow-card)]">
+          <span className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-[11px] font-extrabold uppercase tracking-[0.18em]">
+            {role === "driver" ? <Truck className="h-3.5 w-3.5" /> : <User className="h-3.5 w-3.5" />}
+            {roleLabel(role)} account
           </span>
-          <h1 className="mt-3 text-2xl font-bold text-foreground">Create your VanLink account</h1>
-          <p className="mt-1 text-sm text-foreground/70">
-            No code to type. Enter your details once, tap the email sign-in link, and VanLink finishes setup for you.
+          <h1 className="mt-4 text-2xl font-black leading-tight">VanLink account setup</h1>
+          <p className="mt-2 text-sm leading-6 text-primary-foreground/85">
+            Simple login. Verified email. One clean profile. No confusing codes.
           </p>
         </div>
 
-        <div className="flex rounded-xl bg-card p-1 text-sm font-medium shadow-[var(--shadow-card)]">
-          {(["client", "driver"] as const).map((r) => (
-            <Link
-              key={r}
-              to="/signup"
-              search={{ role: r }}
-              className={`flex-1 rounded-lg px-3 py-2 text-center transition ${
-                role === r ? "bg-primary text-primary-foreground" : "text-muted-foreground"
-              }`}
-            >
-              {r === "client" ? "I need a truck" : "I drive a truck"}
-            </Link>
-          ))}
+        <div className="grid grid-cols-3 gap-2 text-center text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+          <div className={`rounded-xl px-2 py-2 ${step === "email" || step === "sent" ? "bg-primary text-primary-foreground" : "bg-card"}`}>1 Email</div>
+          <div className={`rounded-xl px-2 py-2 ${step === "profile" ? "bg-primary text-primary-foreground" : "bg-card"}`}>2 Profile</div>
+          <div className={`rounded-xl px-2 py-2 ${step === "done" ? "bg-success text-white" : "bg-card"}`}>3 Done</div>
         </div>
 
-        {linkSent && (
+        {checking && <Panel><p className="text-sm text-muted-foreground">Checking your login...</p></Panel>}
+
+        {!checking && step === "email" && (
+          <Panel>
+            <div className="mb-4">
+              <h2 className="text-lg font-extrabold text-card-foreground">Start with email</h2>
+              <p className="mt-1 text-sm text-muted-foreground">We will send a secure login link. Tap it once, then complete your profile.</p>
+            </div>
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 rounded-2xl border border-input bg-secondary px-3 py-3">
+                <Mail className="h-4 w-4 text-muted-foreground" />
+                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="your@email.com" className="input-mobile" />
+              </div>
+              <PrimaryButton onClick={sendMagicLink} disabled={saving}>{saving ? "Sending..." : "Email me login link"}</PrimaryButton>
+            </div>
+          </Panel>
+        )}
+
+        {!checking && step === "sent" && (
           <Panel className="border border-success/25 bg-success/10">
             <div className="flex gap-3">
-              <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-success" />
-              <div>
-                <p className="text-sm font-extrabold text-card-foreground">Email sent</p>
-                <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                  Open <strong>{email}</strong>, tap <strong>Sign in</strong>, then return here. Your details are safely held on this phone.
+              <CheckCircle2 className="mt-0.5 h-6 w-6 shrink-0 text-success" />
+              <div className="flex-1">
+                <h2 className="text-lg font-extrabold text-card-foreground">Check your email</h2>
+                <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                  We sent a sign-in link to <strong>{email}</strong>. Tap <strong>Sign in</strong>. When you return here, we will ask for your profile details.
                 </p>
+                <div className="mt-4 space-y-2">
+                  <PrimaryButton onClick={checkLogin} disabled={saving}>{saving ? "Checking..." : "I clicked the email link"}</PrimaryButton>
+                  <button type="button" onClick={startOver} className="w-full rounded-xl bg-card py-3 text-sm font-bold text-card-foreground">Use different email</button>
+                </div>
               </div>
             </div>
           </Panel>
         )}
 
-        <Panel>
-          <form onSubmit={submit} className="space-y-4">
-            <Field label="Full names">
-              <IconInput icon={User}>
-                <input required value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Kago Mokoena" className="input-mobile" disabled={linkSent} />
-              </IconInput>
-            </Field>
-
-            <Field label="Omang / ID number">
-              <IconInput icon={IdCard}>
-                <input required value={identity} onChange={(e) => setIdentity(e.target.value)} placeholder="Enter ID number" className="input-mobile" disabled={linkSent} />
-              </IconInput>
-            </Field>
-
-            <Field label="Cellphone / WhatsApp number">
-              <IconInput icon={Phone}>
-                <input required value={phone} onChange={(e) => setPhone(e.target.value)} className="input-mobile" disabled={linkSent} />
-              </IconInput>
-            </Field>
-
-            <Field label="Email address">
-              <IconInput icon={Mail}>
-                <input required type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@gmail.com" className="input-mobile" disabled={linkSent} />
-              </IconInput>
-            </Field>
-
-            {isDriver && (
-              <div className="space-y-4 rounded-2xl bg-secondary p-4">
-                <div className="flex items-center gap-2">
-                  <ShieldCheck className="h-4 w-4 text-success" />
-                  <h2 className="text-sm font-bold text-card-foreground">Driver and truck verification</h2>
-                </div>
-                <SelectField label="Truck size" value={truckSize} onChange={setTruckSize} disabled={linkSent} />
-                <TextField label="Vehicle plate number" value={plateNumber} onChange={(v) => setPlateNumber(v.toUpperCase())} placeholder="e.g. B123ABC" disabled={linkSent} />
-                <DateField label="Licence disc expiry date" value={licenceDiscExpiry} onChange={setLicenceDiscExpiry} disabled={linkSent} />
-                <PermitField value={baPermit} onChange={setBaPermit} disabled={linkSent} />
-                <TextField label="Botswana licence code" value={licenceCode} onChange={(v) => setLicenceCode(v.toUpperCase())} placeholder="e.g. B, C1, C, EC" disabled={linkSent} />
-                <TextField label="Driver licence number" value={licenceNumber} onChange={setLicenceNumber} placeholder="Enter licence number" disabled={linkSent} />
+        {!checking && step === "profile" && (
+          <Panel>
+            <form onSubmit={saveProfile} className="space-y-4">
+              <div>
+                <h2 className="text-lg font-extrabold text-card-foreground">Complete your profile</h2>
+                <p className="mt-1 text-sm text-muted-foreground">You are signed in. Add your name, phone and optional profile photo.</p>
               </div>
-            )}
 
-            <PrimaryButton type="submit" disabled={saving}>
-              <MessageCircle className="-ml-1 mr-1 inline h-4 w-4" />
-              {saving ? "Please wait..." : linkSent ? "I clicked the email link — continue" : "Email me secure sign-in link"}
-            </PrimaryButton>
+              <div className="flex flex-col items-center gap-3 rounded-2xl bg-secondary p-4">
+                <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full bg-card text-3xl font-black text-primary shadow-[var(--shadow-soft)]">
+                  {avatar ? <img src={avatar} alt="Profile" className="h-full w-full object-cover" /> : (name.trim().charAt(0).toUpperCase() || "V")}
+                </div>
+                <label className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-card px-4 py-2 text-xs font-extrabold text-card-foreground shadow-[var(--shadow-soft)]">
+                  <Camera className="h-4 w-4" />
+                  Add profile image
+                  <input type="file" accept="image/*" className="hidden" onChange={(e) => pickAvatar(e.target.files?.[0] || null)} />
+                </label>
+              </div>
 
-            {linkSent && (
-              <button
-                type="button"
-                onClick={() => {
-                  safeStorageRemove(PENDING_KEY);
-                  setLinkSent(false);
-                }}
-                className="w-full rounded-xl bg-secondary py-3 text-sm font-semibold text-card-foreground"
-              >
-                Use a different email
-              </button>
-            )}
-          </form>
-        </Panel>
+              <ProfileInput icon={User} label="Full name" value={name} onChange={setName} placeholder="e.g. Kago Mokoena" />
+              <ProfileInput icon={Phone} label="WhatsApp / phone" value={phone} onChange={setPhone} placeholder="+267 75560140" />
+              <ProfileInput icon={Mail} label="Email" value={email} onChange={setEmail} placeholder="your@email.com" disabled />
 
-        <p className="text-center text-xs text-foreground/60">
-          Drivers can upload licence, licence disc and BA permit documents after email verification.
-        </p>
+              <div className="rounded-2xl border border-primary/15 bg-primary/10 p-3 text-xs leading-5 text-foreground/75">
+                <div className="mb-1 flex items-center gap-2 font-extrabold text-foreground">
+                  <ShieldCheck className="h-4 w-4 text-primary" /> Verified as {roleLabel(role)}
+                </div>
+                {role === "driver" ? "After this, upload your licence, licence disc and BA permit from the driver dashboard." : "After this, you can request a truck from the client dashboard."}
+              </div>
+
+              <PrimaryButton type="submit" disabled={saving}>{saving ? "Saving..." : "Save profile and finish"}</PrimaryButton>
+            </form>
+          </Panel>
+        )}
+
+        {!checking && step === "done" && (
+          <Panel className="border border-success/25 bg-success/10">
+            <div className="text-center">
+              <div className="mx-auto flex h-24 w-24 items-center justify-center overflow-hidden rounded-full bg-white text-3xl font-black text-primary shadow-[var(--shadow-soft)]">
+                {avatar ? <img src={avatar} alt="Profile" className="h-full w-full object-cover" /> : (name.trim().charAt(0).toUpperCase() || "V")}
+              </div>
+              <CheckCircle2 className="mx-auto mt-4 h-8 w-8 text-success" />
+              <h2 className="mt-3 text-xl font-black text-card-foreground">You are registered</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Logged in as <strong>{name || email}</strong>. Your VanLink profile is ready.
+              </p>
+              <div className="mt-5 space-y-2">
+                <PrimaryButton onClick={() => void navigate({ to: dashboardPath })}>Go to my dashboard</PrimaryButton>
+                <button type="button" onClick={startOver} className="w-full rounded-xl bg-card py-3 text-sm font-bold text-card-foreground">Sign out / switch account</button>
+              </div>
+            </div>
+          </Panel>
+        )}
+
+        <div className="flex rounded-xl bg-card p-1 text-sm font-medium shadow-[var(--shadow-card)]">
+          {(["client", "driver"] as const).map((item) => (
+            <Link key={item} to="/signup" search={{ role: item }} className={`flex-1 rounded-lg px-3 py-2 text-center transition ${role === item ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>
+              {item === "client" ? "Client" : "Driver"}
+            </Link>
+          ))}
+        </div>
       </div>
     </AppShell>
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function ProfileInput({ icon: Icon, label, value, onChange, placeholder, disabled }: { icon: typeof User; label: string; value: string; onChange: (value: string) => void; placeholder?: string; disabled?: boolean }) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</span>
-      {children}
+      <span className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground">{label}</span>
+      <div className="flex items-center gap-2 rounded-2xl border border-input bg-secondary px-3 py-3 focus-within:border-primary">
+        <Icon className="h-4 w-4 text-muted-foreground" />
+        <input required value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} disabled={disabled} className="input-mobile disabled:opacity-70" />
+      </div>
     </label>
-  );
-}
-
-function IconInput({ icon: Icon, children }: { icon: typeof User; children: React.ReactNode }) {
-  return (
-    <div className="flex items-center gap-2 rounded-xl border border-input bg-secondary px-3 py-3 focus-within:border-primary">
-      <Icon className="h-4 w-4 text-muted-foreground" />
-      {children}
-    </div>
-  );
-}
-
-function TextField({ label, value, onChange, placeholder, disabled }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; disabled?: boolean }) {
-  return (
-    <Field label={label}>
-      <input required value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} disabled={disabled} className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm text-card-foreground outline-none focus:border-primary" />
-    </Field>
-  );
-}
-
-function DateField({ label, value, onChange, disabled }: { label: string; value: string; onChange: (v: string) => void; disabled?: boolean }) {
-  return (
-    <Field label={label}>
-      <input required type="date" value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled} className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm text-card-foreground outline-none focus:border-primary" />
-    </Field>
-  );
-}
-
-function SelectField({ label, value, onChange, disabled }: { label: string; value: string; onChange: (v: string) => void; disabled?: boolean }) {
-  return (
-    <Field label={label}>
-      <select required value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled} className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm text-card-foreground outline-none focus:border-primary">
-        <option value="mini">Mini van / under 2 tons</option>
-        <option value="medium">Medium truck / 2–5 tons</option>
-        <option value="big">Big truck / 5+ tons</option>
-      </select>
-    </Field>
-  );
-}
-
-function PermitField({ value, onChange, disabled }: { value: string; onChange: (v: string) => void; disabled?: boolean }) {
-  return (
-    <Field label="BA permit status">
-      <select required value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled} className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm text-card-foreground outline-none focus:border-primary">
-        <option value="valid">Valid BA permit</option>
-        <option value="pending">Application pending</option>
-        <option value="not_available">Not available yet</option>
-      </select>
-    </Field>
   );
 }

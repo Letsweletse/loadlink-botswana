@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { BriefcaseBusiness, Home, MapPin, Package, Truck, User } from "lucide-react";
+import { Home, MapPin, Package, Truck, User } from "lucide-react";
 import { type ReactNode } from "react";
 
 const HOSTED_LOGO_URL =
@@ -26,6 +26,7 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
               <img
                 src={HOSTED_LOGO_URL}
                 alt="VanLink"
+                style={{ display: "block" }}
                 className="h-10 w-10 rounded-md border border-border bg-white object-cover"
               />
               <div className="leading-tight">

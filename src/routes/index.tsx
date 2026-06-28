@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { AppShell, Panel, PrimaryButton } from "@/components/AppShell";
-import { ArrowRight, BadgeCheck, Clock, MapPin, ShieldCheck, Truck, Users, Wallet } from "lucide-react";
+import { ArrowRight, Clock, MapPin, ShieldCheck, Truck, Users, Wallet } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -40,13 +40,6 @@ const truckCategories: TruckCategory[] = [
     note: "Heavy loads, long-distance jobs and bulk commercial transport.",
     tone: "from-orange-400 to-amber-300",
   },
-];
-
-const benefits = [
-  "Verified driver onboarding",
-  "WhatsApp-first booking flow",
-  "Built for Botswana transport jobs",
-  "Clients and drivers start separately",
 ];
 
 function Index() {
@@ -145,17 +138,6 @@ function Index() {
               Register as driver
             </PrimaryButton>
           </Panel>
-        </section>
-
-        <section className="rounded-[1.5rem] border border-white/10 bg-white/5 p-4">
-          <h3 className="text-sm font-bold text-white">Why this works</h3>
-          <div className="mt-3 grid gap-2">
-            {benefits.map((benefit) => (
-              <div key={benefit} className="flex items-center gap-2 text-sm text-white/72">
-                <BadgeCheck className="h-4 w-4 text-success" /> {benefit}
-              </div>
-            ))}
-          </div>
         </section>
       </div>
     </AppShell>

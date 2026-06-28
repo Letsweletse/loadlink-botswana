@@ -2,8 +2,12 @@ import { createClient } from "@supabase/supabase-js";
 import type { TruckSize } from "./vanlink";
 import { safeJsonParse, safeStorageGet, safeStorageRemove, safeStorageSet } from "./safe-storage";
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const fallbackSupabaseUrl = "https://kcgsxxwgzrmsnnxvpkvi.supabase.co";
+const fallbackSupabaseAnonKey =
+  "sb_publishable_vZ0E2Rkj7yQdhfWd66O1gg_gq31NgZp";
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || fallbackSupabaseUrl;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || fallbackSupabaseAnonKey;
 const REQUEST_TIMEOUT_MS = 7000;
 
 export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);

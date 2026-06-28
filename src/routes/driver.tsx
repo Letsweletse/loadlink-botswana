@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { AppShell, Panel } from "@/components/AppShell";
 import { TRUCK_TIERS, type TruckSize } from "@/lib/vanlink";
 import { ORANGE_MONEY_PAY_TO_NUMBER, orangeMoneyPaymentPrompt } from "@/lib/payments";
-import { Truck, Wallet, BadgeCheck, FileText, AlertCircle } from "lucide-react";
+import { Truck, Wallet, BadgeCheck, FileText, AlertCircle, UploadCloud } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -10,15 +10,48 @@ import {
   createTruck,
   fetchTrucksByPhone,
   fetchWalletTransactions,
+  isSupabaseConfigured,
   localUser,
+  supabase,
   updateTruck,
   type TruckRecord,
   type WalletTransaction,
 } from "@/lib/supabase";
+import { safeJsonParse, safeStorageGet, safeStorageSet } from "@/lib/safe-storage";
 
 export const Route = createFileRoute("/driver")({
   component: DriverHub,
 });
+
+type DriverDocumentKind = "driver_licence" | "licence_disc" | "ba_permit";
+
+type DriverDocument = {
+  kind: DriverDocumentKind;
+  fileName: string;
+  fileSize: number;
+  fileType: string;
+  uploadedAt: string;
+  status: "uploaded" | "saved_on_device";
+  storagePath?: string;
+  error?: string;
+};
+
+const DOC_LABELS: Record<DriverDocumentKind, string> = {
+  driver_licence: "Driver licence",
+  licence_disc: "Licence disc",
+  ba_permit: "BA permit",
+};
+
+function documentsKey(phone?: string | null) {
+  return `vanlink_driver_documents_${String(phone || "guest").replace(/\W/g, "")}`;
+}
+
+function cleanFileName(value: string) {
+  return String(value || "document")
+    .replace(/[^a-z0-9._-]/gi, "-")
+    .replace(/-+/g, "-")
+    .slice(0, 90);
+}
 
 function DriverHub() {
   const user = localUser();
@@ -30,6 +63,8 @@ function DriverHub() {
   const [active, setActive] = useState(false);
   const [truck, setTruck] = useState<TruckRecord | null>(null);
   const [wallet, setWallet] = useState<WalletTransaction[]>([]);
+  const [documents, setDocuments] = useState<DriverDocument[]>([]);
+  const [uploadingKind, setUploadingKind] = useState<DriverDocumentKind | null>(null);
   const [saving, setSaving] = useState(false);
   const tier = TRUCK_TIERS[size];
 
@@ -63,10 +98,68 @@ function DriverHub() {
     void loadDriverData();
   }, [loadDriverData]);
 
+  useEffect(() => {
+    const saved = safeJsonParse<DriverDocument[]>(safeStorageGet(documentsKey(user?.phone)), []);
+    setDocuments(saved);
+  }, [user?.phone]);
+
   const balance = useMemo(
     () => wallet.reduce((sum, tx) => sum + Number(tx.amount || 0), 0),
     [wallet],
   );
+
+  async function uploadDriverDocument(kind: DriverDocumentKind, file?: File | null) {
+    if (!file) return;
+
+    if (!user?.phone) {
+      toast.error("Sign up first", { description: "Create a driver profile before uploading documents." });
+      return;
+    }
+
+    setUploadingKind(kind);
+    const uploadedAt = new Date().toISOString();
+    const meta: DriverDocument = {
+      kind,
+      fileName: file.name,
+      fileSize: file.size,
+      fileType: file.type || "application/octet-stream",
+      uploadedAt,
+      status: "saved_on_device",
+    };
+
+    try {
+      if (isSupabaseConfigured && supabase) {
+        const folder = user.phone.replace(/\D/g, "") || "driver";
+        const path = `${folder}/${kind}-${Date.now()}-${cleanFileName(file.name)}`;
+        const { error } = await supabase.storage.from("driver-documents").upload(path, file, {
+          upsert: true,
+          contentType: file.type || "application/octet-stream",
+        });
+
+        if (error) throw error;
+        meta.status = "uploaded";
+        meta.storagePath = path;
+      }
+    } catch (error) {
+      meta.error = error instanceof Error ? error.message : "Could not upload to storage";
+      console.warn("Document stored locally until storage is ready", error);
+    } finally {
+      const next = [meta, ...documents.filter((doc) => doc.kind !== kind)];
+      setDocuments(next);
+      safeStorageSet(documentsKey(user.phone), JSON.stringify(next));
+      setUploadingKind(null);
+
+      if (meta.status === "uploaded") {
+        toast.success(`${DOC_LABELS[kind]} uploaded`);
+      } else {
+        toast(`${DOC_LABELS[kind]} selected`, {
+          description: meta.error
+            ? "Saved on this phone. Supabase storage bucket/permission must be checked."
+            : "Saved on this phone for onboarding review.",
+        });
+      }
+    }
+  }
 
   async function topUp() {
     if (!user?.phone) {
@@ -235,7 +328,7 @@ function DriverHub() {
           </p>
           <Input label="Number plate" value={plate} onChange={setPlate} placeholder="B 123 ABC" />
           <Input
-            label="Licence disk expiry"
+            label="Licence disc expiry"
             value={licenceExpiry}
             onChange={setLicenceExpiry}
             placeholder="YYYY-MM-DD"
@@ -261,9 +354,44 @@ function DriverHub() {
             transport regulations.
           </div>
 
-          <button className="flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-secondary py-2.5 text-sm font-semibold text-card-foreground">
-            <FileText className="h-4 w-4" /> Upload licence disk & permit
-          </button>
+          <div className="space-y-2 rounded-xl border border-border bg-secondary p-3">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Upload verification documents
+            </p>
+            {(Object.keys(DOC_LABELS) as DriverDocumentKind[]).map((kind) => {
+              const doc = documents.find((item) => item.kind === kind);
+              return (
+                <label
+                  key={kind}
+                  className="flex cursor-pointer items-center justify-between gap-3 rounded-lg bg-card px-3 py-2.5 text-sm text-card-foreground"
+                >
+                  <span className="min-w-0">
+                    <span className="flex items-center gap-2 font-semibold">
+                      <FileText className="h-4 w-4 text-primary" /> {DOC_LABELS[kind]}
+                    </span>
+                    <span className="block truncate text-[11px] text-muted-foreground">
+                      {doc ? `${doc.fileName} · ${doc.status === "uploaded" ? "uploaded" : "selected"}` : "PDF or image"}
+                    </span>
+                  </span>
+                  <span className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-primary px-2.5 py-1.5 text-xs font-bold text-primary-foreground">
+                    <UploadCloud className="h-3.5 w-3.5" />
+                    {uploadingKind === kind ? "Uploading" : "Choose"}
+                  </span>
+                  <input
+                    type="file"
+                    accept="image/*,.pdf"
+                    className="hidden"
+                    disabled={uploadingKind !== null}
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      void uploadDriverDocument(kind, file);
+                      event.currentTarget.value = "";
+                    }}
+                  />
+                </label>
+              );
+            })}
+          </div>
         </Panel>
 
         <button

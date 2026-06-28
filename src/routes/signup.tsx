@@ -3,7 +3,7 @@ import { AppShell, Panel, PrimaryButton } from "@/components/AppShell";
 import { IdCard, Mail, MessageCircle, Phone, ShieldCheck, Truck, User } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { upsertProfile } from "@/lib/supabase";
+import { isSupabaseConfigured, supabase, upsertProfile } from "@/lib/supabase";
 import { safeStorageSet } from "@/lib/safe-storage";
 
 export const Route = createFileRoute("/signup")({
@@ -12,6 +12,17 @@ export const Route = createFileRoute("/signup")({
   }),
   component: SignUp,
 });
+
+function normalizePhoneInput(value: string) {
+  const digits = String(value || "").replace(/\D/g, "");
+  if (digits.startsWith("267") && digits.length === 11) return `+${digits}`;
+  if (digits.length === 8) return `+267${digits}`;
+  return String(value || "").trim();
+}
+
+function normalizeEmailInput(value: string) {
+  return String(value || "").trim().toLowerCase();
+}
 
 function SignUp() {
   const { role } = Route.useSearch();
@@ -33,55 +44,145 @@ function SignUp() {
 
   const isDriver = role === "driver";
 
+  async function sendVerificationCode() {
+    const cleanEmail = normalizeEmailInput(email);
+    const cleanPhone = normalizePhoneInput(phone);
+
+    if (!cleanEmail) {
+      toast.error("Email is required", { description: "Enter a valid Gmail/email address first." });
+      return;
+    }
+
+    setSaving(true);
+    try {
+      if (!isSupabaseConfigured || !supabase) {
+        throw new Error("Verification service is not configured on this deployment.");
+      }
+
+      const { error } = await supabase.auth.signInWithOtp({
+        email: cleanEmail,
+        options: {
+          shouldCreateUser: true,
+          emailRedirectTo: typeof window !== "undefined" ? `${window.location.origin}/signup?role=${role}` : undefined,
+          data: {
+            name: name.trim(),
+            phone: cleanPhone,
+            role: isDriver ? "driver" : "customer",
+          },
+        },
+      });
+
+      if (error) throw error;
+
+      setPhone(cleanPhone);
+      setEmail(cleanEmail);
+      setOtpSent(true);
+      toast.success("Verification code sent", {
+        description: `Check ${cleanEmail} for the 6-digit code.`,
+      });
+    } catch (error) {
+      console.error(error);
+      toast.error("Could not send verification code", {
+        description: error instanceof Error ? error.message : "Please try again.",
+      });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function verifyCode() {
+    const cleanEmail = normalizeEmailInput(email);
+    const token = otp.trim();
+
+    if (!/^\d{6}$/.test(token)) {
+      toast.error("Enter the 6-digit code", { description: "Use the code sent to your email." });
+      return false;
+    }
+
+    if (!isSupabaseConfigured || !supabase) {
+      toast.error("Verification service missing", {
+        description: "Supabase email OTP is not configured on this deployment.",
+      });
+      return false;
+    }
+
+    const { error } = await supabase.auth.verifyOtp({
+      email: cleanEmail,
+      token,
+      type: "email",
+    });
+
+    if (error) {
+      toast.error("Invalid verification code", {
+        description: error.message || "Please request a new code and try again.",
+      });
+      return false;
+    }
+
+    return true;
+  }
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!otpSent) {
-      setOtpSent(true);
-      toast("Verification code sent", { description: `WhatsApp/Gmail check for ${phone}` });
+      await sendVerificationCode();
       return;
     }
 
     setSaving(true);
 
-    const normalizedRole = isDriver ? "driver" : "customer";
-    const expandedPayload = {
-      name,
-      idNumber,
-      phone,
-      email,
-      role,
-      verifiedAt: new Date().toISOString(),
-      driver: isDriver
-        ? {
-            truckSize,
-            plateNumber,
-            licenceDiscExpiry,
-            baPermit,
-            licenceCode,
-            licenceNumber,
-          }
-        : null,
-    };
+    try {
+      const verified = await verifyCode();
+      if (!verified) return;
 
-    safeStorageSet("vanlink_user", JSON.stringify(expandedPayload));
-    safeStorageSet(
-      "vanlink_profile",
-      JSON.stringify({
-        name: name.trim() || "Van-Link user",
-        phone,
-        email,
-        role: normalizedRole,
-      }),
-    );
+      const normalizedRole = isDriver ? "driver" : "customer";
+      const cleanPhone = normalizePhoneInput(phone);
+      const cleanEmail = normalizeEmailInput(email);
+      const expandedPayload = {
+        name,
+        idNumber,
+        phone: cleanPhone,
+        email: cleanEmail,
+        role,
+        verifiedAt: new Date().toISOString(),
+        driver: isDriver
+          ? {
+              truckSize,
+              plateNumber,
+              licenceDiscExpiry,
+              baPermit,
+              licenceCode,
+              licenceNumber,
+            }
+          : null,
+      };
 
-    toast.success("Registration saved successfully");
-    setSaving(false);
-    void navigate({ to: isDriver ? "/driver" : "/client" });
+      safeStorageSet("vanlink_user", JSON.stringify(expandedPayload));
+      safeStorageSet(
+        "vanlink_profile",
+        JSON.stringify({
+          name: name.trim() || "Van-Link user",
+          phone: cleanPhone,
+          email: cleanEmail,
+          role: normalizedRole,
+        }),
+      );
 
-    void upsertProfile({ name, phone, email, role: normalizedRole }).catch((error) => {
-      console.warn("Profile will sync when the service is available", error);
-    });
+      await upsertProfile({ name, phone: cleanPhone, email: cleanEmail, role: normalizedRole }).catch((error) => {
+        console.warn("Profile will sync when the service is available", error);
+      });
+
+      toast.success("Registration verified and saved");
+      void navigate({ to: isDriver ? "/driver" : "/client" });
+    } catch (error) {
+      console.error(error);
+      toast.error("Could not finish registration", {
+        description: error instanceof Error ? error.message : "Please try again.",
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -245,8 +346,9 @@ function SignUp() {
               <Field label="6-digit verification code">
                 <input
                   required
+                  inputMode="numeric"
                   value={otp}
-                  onChange={(e) => setOtp(e.target.value)}
+                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
                   placeholder="123456"
                   maxLength={6}
                   className="w-full rounded-xl border border-input bg-secondary px-4 py-3 text-center text-lg tracking-[0.4em] text-card-foreground outline-none focus:border-primary"
@@ -256,7 +358,7 @@ function SignUp() {
 
             <PrimaryButton type="submit" disabled={saving}>
               <MessageCircle className="-ml-1 mr-1 inline h-4 w-4" />
-              {saving ? "Saving..." : otpSent ? "Verify and continue" : "Send verification code"}
+              {saving ? "Please wait..." : otpSent ? "Verify and continue" : "Send verification code"}
             </PrimaryButton>
           </form>
         </Panel>

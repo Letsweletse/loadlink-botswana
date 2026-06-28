@@ -12,19 +12,9 @@ export default defineConfig({
     },
   },
   build: {
-    target: ["es2018", "chrome61", "safari13"],
-    cssTarget: ["chrome61", "safari13"],
+    target: "es2018",
+    cssTarget: "chrome61",
     outDir: "dist",
     emptyOutDir: true,
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          "react-vendor": ["react", "react-dom"],
-          supabase: ["@supabase/supabase-js"],
-          tanstack: ["@tanstack/react-query", "@tanstack/react-router"],
-          charts: ["recharts"],
-        },
-      },
-    },
   },
 });

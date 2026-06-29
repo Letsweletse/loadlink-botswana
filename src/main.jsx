@@ -8,32 +8,20 @@ import "./styles.css";
 const root = document.getElementById("root");
 
 function cleanupStaleAppCaches() {
-  if (!import.meta.env.PROD) return;
+  if (!import.meta.env.PROD || typeof window === "undefined") return;
 
   window.addEventListener("load", () => {
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker
         .getRegistrations()
-        .then((registrations) => {
-          registrations.forEach((registration) => {
-            if (registration.scope.startsWith(window.location.origin)) {
-              registration.update().catch(() => null);
-            }
-          });
-        })
+        .then((registrations) => Promise.all(registrations.map((registration) => registration.unregister())))
         .catch(() => null);
     }
 
     if ("caches" in window) {
       caches
         .keys()
-        .then((keys) =>
-          Promise.all(
-            keys
-              .filter((key) => key.startsWith("vanlink-pwa-"))
-              .map((key) => caches.delete(key)),
-          ),
-        )
+        .then((keys) => Promise.all(keys.map((key) => caches.delete(key))))
         .catch(() => null);
     }
   });

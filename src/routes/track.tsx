@@ -38,12 +38,11 @@ function safeStorageRemove(key: string) {
 function LiveTrackingBadge() {
   return (
     <div
-      className="absolute right-3 top-3 inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-white"
+      className="absolute right-3 top-3 inline-flex animate-pulse items-center gap-2 rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-white"
       style={{
         background: "linear-gradient(135deg, #7f1d1d, #dc2626)",
         borderColor: "rgba(252,165,165,.9)",
-        boxShadow: "0 0 0 1px rgba(255,255,255,.12), 0 0 18px rgba(239,68,68,.8)",
-        animation: "liveTrackingPulse 1.6s ease-in-out infinite",
+        boxShadow: "0 0 0 1px rgba(255,255,255,.12), 0 0 22px rgba(239,68,68,.95)",
       }}
     >
       <span

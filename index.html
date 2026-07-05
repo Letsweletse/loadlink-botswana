@@ -2,13 +2,38 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#2a7bf2" />
     <meta name="application-name" content="VanLink" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="VanLink" />
+    <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" href="https://res.cloudinary.com/dyfecybo0/image/upload/f_auto,q_auto,w_64,h_64,c_fill/v1782459767/WhatsApp_Image_2026-05-23_at_15.51.54_mzlajs.jpg" />
     <link rel="shortcut icon" href="https://res.cloudinary.com/dyfecybo0/image/upload/f_auto,q_auto,w_64,h_64,c_fill/v1782459767/WhatsApp_Image_2026-05-23_at_15.51.54_mzlajs.jpg" />
     <link rel="apple-touch-icon" sizes="180x180" href="https://res.cloudinary.com/dyfecybo0/image/upload/f_auto,q_auto,w_180,h_180,c_fill/v1782459767/WhatsApp_Image_2026-05-23_at_15.51.54_mzlajs.jpg" />
     <title>VanLink Botswana</title>
+    <script>
+      window.addEventListener("error", function () {
+        setTimeout(function () {
+          var root = document.getElementById("root");
+          var legacy = document.getElementById("legacy-browser");
+          if (legacy && (!root || !root.innerHTML || root.innerHTML.trim() === "")) {
+            legacy.style.display = "block";
+          }
+        }, 100);
+      });
+
+      window.addEventListener("unhandledrejection", function () {
+        setTimeout(function () {
+          var root = document.getElementById("root");
+          var legacy = document.getElementById("legacy-browser");
+          if (legacy && (!root || !root.innerHTML || root.innerHTML.trim() === "")) {
+            legacy.style.display = "block";
+          }
+        }, 100);
+      });
+    </script>
   </head>
   <body>
     <div id="root"></div>

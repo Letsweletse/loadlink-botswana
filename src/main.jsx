@@ -7,27 +7,17 @@ import "./styles.css";
 
 const root = document.getElementById("root");
 
-function cleanupStaleAppCaches() {
-  if (!import.meta.env.PROD || typeof window === "undefined") return;
+function startServiceWorker() {
+  if (!import.meta.env.PROD) return;
+  if (typeof window === "undefined") return;
+  if (!("serviceWorker" in navigator)) return;
 
   window.addEventListener("load", () => {
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker
-        .getRegistrations()
-        .then((registrations) => Promise.all(registrations.map((registration) => registration.unregister())))
-        .catch(() => null);
-    }
-
-    if ("caches" in window) {
-      caches
-        .keys()
-        .then((keys) => Promise.all(keys.map((key) => caches.delete(key))))
-        .catch(() => null);
-    }
+    navigator.serviceWorker.register("/sw.js").catch(() => null);
   });
 }
 
-cleanupStaleAppCaches();
+startServiceWorker();
 
 if (root) {
   const router = getRouter();

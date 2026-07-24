@@ -14,25 +14,39 @@
     <link rel="apple-touch-icon" sizes="180x180" href="https://res.cloudinary.com/dyfecybo0/image/upload/f_auto,q_auto,w_180,h_180,c_fill/v1782459767/WhatsApp_Image_2026-05-23_at_15.51.54_mzlajs.jpg" />
     <title>VanLink Botswana</title>
     <script>
-      window.addEventListener("error", function () {
-        setTimeout(function () {
-          var root = document.getElementById("root");
-          var legacy = document.getElementById("legacy-browser");
-          if (legacy && (!root || !root.innerHTML || root.innerHTML.trim() === "")) {
-            legacy.style.display = "block";
+      // Real capability check, not a crash detector: matches the JS the build
+      // actually ships (vite.config.ts build.target = es2018) plus the runtime
+      // APIs the app calls (fetch, Promise). A missing feature here means the
+      // bundle genuinely cannot run, unlike an arbitrary uncaught app error.
+      (function () {
+        function supportsSyntax() {
+          try {
+            // Object rest/spread + async generators are ES2018, matching
+            // vite.config.ts's build.target. Anything newer than that is
+            // already transpiled away by the build, so isn't safe to gate on.
+            new Function("async function* g(){yield 1} const {a,...b}=({}); return true;")();
+            return true;
+          } catch (e) {
+            return false;
           }
-        }, 100);
-      });
+        }
 
-      window.addEventListener("unhandledrejection", function () {
-        setTimeout(function () {
-          var root = document.getElementById("root");
-          var legacy = document.getElementById("legacy-browser");
-          if (legacy && (!root || !root.innerHTML || root.innerHTML.trim() === "")) {
-            legacy.style.display = "block";
-          }
-        }, 100);
-      });
+        var supported =
+          "Promise" in window &&
+          "fetch" in window &&
+          "Symbol" in window &&
+          typeof Array.prototype.includes === "function" &&
+          typeof Object.assign === "function" &&
+          supportsSyntax();
+
+        if (!supported) {
+          window.__vlUnsupportedBrowser = true;
+          document.write(
+            '<style>#root,#app-startup-error{display:none!important}' +
+              "#legacy-browser{display:block!important}</style>",
+          );
+        }
+      })();
     </script>
   </head>
   <body>
@@ -79,6 +93,104 @@
         </p>
       </div>
     </div>
+    <div
+      id="app-startup-error"
+      style="
+        display: none;
+        min-height: 100vh;
+        padding: 24px;
+        font-family: Arial, sans-serif;
+        background: #071426;
+        color: #ffffff;
+      "
+    >
+      <div
+        style="
+          max-width: 520px;
+          margin: 40px auto;
+          padding: 20px;
+          border-radius: 16px;
+          background: #fdfcfa;
+          color: #111827;
+        "
+      >
+        <p
+          style="
+            margin: 0 0 8px;
+            font-size: 12px;
+            font-weight: 800;
+            color: #46321e;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+          "
+        >
+          VanLink
+        </p>
+        <h1 style="margin: 0 0 10px; font-size: 24px; line-height: 1.1">
+          This is taking longer than it should
+        </h1>
+        <p style="margin: 0 0 16px; color: #64748b; font-size: 14px; line-height: 1.5">
+          The app didn't finish loading, likely a slow or interrupted connection. Tap below to
+          clear any stale cached files and try again.
+        </p>
+        <button
+          id="app-startup-retry"
+          style="
+            width: 100%;
+            border: 0;
+            border-radius: 12px;
+            padding: 12px;
+            background: linear-gradient(135deg, #c89a63, #e0c296);
+            color: #46321e;
+            font-weight: 800;
+            font-size: 14px;
+          "
+        >
+          Reload app
+        </button>
+      </div>
+    </div>
+    <script>
+      // Safety net for the case a script/error listener can't catch: the module
+      // script itself never finishes (dropped mobile connection, 404 after a
+      // deploy) and #root simply stays empty forever. Deliberately not labeled
+      // as a browser problem, since on a capable browser it almost never is one.
+      if (!window.__vlUnsupportedBrowser) {
+        window.setTimeout(function () {
+          var root = document.getElementById("root");
+          var startupError = document.getElementById("app-startup-error");
+          if (startupError && (!root || !root.innerHTML || root.innerHTML.trim() === "")) {
+            startupError.style.display = "block";
+          }
+        }, 12000);
+      }
+
+      document.addEventListener("DOMContentLoaded", function () {
+        var retry = document.getElementById("app-startup-retry");
+        if (!retry) return;
+        retry.addEventListener("click", function () {
+          retry.disabled = true;
+          retry.textContent = "Reloading...";
+          Promise.resolve()
+            .then(function () {
+              if (!("serviceWorker" in navigator)) return;
+              return navigator.serviceWorker.getRegistrations().then(function (regs) {
+                return Promise.all(regs.map(function (r) { return r.unregister(); }));
+              });
+            })
+            .then(function () {
+              if (!("caches" in window)) return;
+              return caches.keys().then(function (keys) {
+                return Promise.all(keys.map(function (k) { return caches.delete(k); }));
+              });
+            })
+            .catch(function () {})
+            .then(function () {
+              window.location.reload();
+            });
+        });
+      });
+    </script>
     <script type="module" src="/src/main.jsx"></script>
     <script nomodule>
       document.getElementById("legacy-browser").style.display = "block";

@@ -3,8 +3,7 @@ import type { TruckSize } from "./vanlink";
 import { safeJsonParse, safeStorageGet, safeStorageRemove, safeStorageSet } from "./safe-storage";
 
 const fallbackSupabaseUrl = "https://kcgsxxwgzrmsnnxvpkvi.supabase.co";
-const fallbackSupabaseAnonKey =
-  "sb_publishable_vZ0E2Rkj7yQdhfWd66O1gg_gq31NgZp";
+const fallbackSupabaseAnonKey = "sb_publishable_vZ0E2Rkj7yQdhfWd66O1gg_gq31NgZp";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || fallbackSupabaseUrl;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || fallbackSupabaseAnonKey;
@@ -251,12 +250,34 @@ export async function updateLoad(id: string, updates: Partial<LoadRecord>) {
   }
 }
 
+export class LoadAlreadyTakenError extends Error {
+  constructor(loadId: string) {
+    super(`Load ${loadId} was already accepted by another driver`);
+    this.name = "LoadAlreadyTakenError";
+  }
+}
+
 export async function acceptLoad(load: LoadRecord, driver: { name: string; phone: string }) {
-  return updateLoad(load.id, {
-    status: "Accepted",
-    driver: driver.name,
-    driver_phone: normalizePhone(driver.phone),
-  });
+  const db = requireClient();
+  const { data, error } = await withTimeout(
+    db
+      .from("loads")
+      .update({
+        status: "Accepted",
+        driver: driver.name,
+        driver_phone: normalizePhone(driver.phone),
+      })
+      .eq("id", load.id)
+      .eq("status", "Broadcasting")
+      .select()
+      .maybeSingle(),
+    "Accept load",
+  );
+  if (error) throw error;
+  // The update only matches a row if the load was still Broadcasting at write
+  // time, so a null result means another driver already accepted it first.
+  if (!data) throw new LoadAlreadyTakenError(load.id);
+  return data as LoadRecord;
 }
 
 export async function completeLoad(load: LoadRecord) {

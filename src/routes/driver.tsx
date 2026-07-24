@@ -2,18 +2,35 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { AppShell, Panel } from "@/components/AppShell";
 import { TRUCK_TIERS, type TruckSize } from "@/lib/vanlink";
 import { ORANGE_MONEY_PAY_TO_NUMBER, orangeMoneyPaymentPrompt } from "@/lib/payments";
-import { Truck, Wallet, BadgeCheck, FileText, AlertCircle, UploadCloud } from "lucide-react";
+import {
+  Truck,
+  Wallet,
+  BadgeCheck,
+  FileText,
+  AlertCircle,
+  UploadCloud,
+  MapPin,
+  Navigation,
+  PackageSearch,
+  Check,
+  Loader2,
+  RefreshCw,
+} from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
+  acceptLoad,
   createPaymentRequest,
   createTruck,
+  fetchOpenLoads,
   fetchTrucksByPhone,
   fetchWalletTransactions,
   isSupabaseConfigured,
+  LoadAlreadyTakenError,
   localUser,
   supabase,
   updateTruck,
+  type LoadRecord,
   type TruckRecord,
   type WalletTransaction,
 } from "@/lib/supabase";
@@ -66,7 +83,58 @@ function DriverHub() {
   const [documents, setDocuments] = useState<DriverDocument[]>([]);
   const [uploadingKind, setUploadingKind] = useState<DriverDocumentKind | null>(null);
   const [saving, setSaving] = useState(false);
+  const [openLoads, setOpenLoads] = useState<LoadRecord[]>([]);
+  const [loadingOpenLoads, setLoadingOpenLoads] = useState(true);
+  const [acceptingId, setAcceptingId] = useState<string | null>(null);
   const tier = TRUCK_TIERS[size];
+
+  const loadOpenLoads = useCallback(async () => {
+    setLoadingOpenLoads(true);
+    try {
+      const loads = await fetchOpenLoads(truck?.category);
+      setOpenLoads(loads.filter((load) => load.status === "Broadcasting"));
+    } catch (error) {
+      console.error(error);
+      toast.error("Could not load available loads", {
+        description: "Please refresh and try again.",
+      });
+    } finally {
+      setLoadingOpenLoads(false);
+    }
+  }, [truck?.category]);
+
+  useEffect(() => {
+    void loadOpenLoads();
+  }, [loadOpenLoads]);
+
+  async function accept(load: LoadRecord) {
+    if (!user?.phone) {
+      toast.error("Sign up first", {
+        description: "Create a driver account before accepting loads.",
+      });
+      return;
+    }
+    setAcceptingId(load.id);
+    try {
+      await acceptLoad(load, { name: user.name || "Driver", phone: user.phone });
+      toast.success(`Accepted ${load.id}`, {
+        description: "Contact the customer to confirm pick-up.",
+      });
+      setOpenLoads((prev) => prev.filter((item) => item.id !== load.id));
+    } catch (error) {
+      if (error instanceof LoadAlreadyTakenError) {
+        toast.error("Someone already took this load", {
+          description: "It's no longer available.",
+        });
+        setOpenLoads((prev) => prev.filter((item) => item.id !== load.id));
+      } else {
+        console.error(error);
+        toast.error("Could not accept load", { description: "Please try again." });
+      }
+    } finally {
+      setAcceptingId(null);
+    }
+  }
 
   const loadDriverData = useCallback(async () => {
     if (!user?.phone) return;
@@ -112,7 +180,9 @@ function DriverHub() {
     if (!file) return;
 
     if (!user?.phone) {
-      toast.error("Sign up first", { description: "Create a driver profile before uploading documents." });
+      toast.error("Sign up first", {
+        description: "Create a driver profile before uploading documents.",
+      });
       return;
     }
 
@@ -282,6 +352,77 @@ function DriverHub() {
           </div>
         </div>
 
+        <Panel>
+          <div className="mb-3 flex items-center justify-between">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Available loads{truck ? ` · ${TRUCK_TIERS[truck.category].label}` : ""}
+            </p>
+            <button
+              type="button"
+              onClick={() => void loadOpenLoads()}
+              className="flex items-center gap-1 text-[11px] font-semibold text-primary"
+            >
+              <RefreshCw className={`h-3 w-3 ${loadingOpenLoads ? "animate-spin" : ""}`} /> Refresh
+            </button>
+          </div>
+
+          {loadingOpenLoads ? (
+            <p className="py-4 text-center text-sm text-muted-foreground">
+              Loading available loads...
+            </p>
+          ) : openLoads.length === 0 ? (
+            <div className="flex flex-col items-center gap-2 py-6 text-center">
+              <PackageSearch className="h-6 w-6 text-muted-foreground" />
+              <p className="text-sm font-semibold text-card-foreground">
+                No loads broadcasting right now
+              </p>
+              <p className="text-xs text-muted-foreground">Check back soon or tap refresh.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {openLoads.map((load) => (
+                <div key={load.id} className="rounded-xl border border-border bg-secondary p-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                      {TRUCK_TIERS[load.category]?.label || load.category} · {load.id}
+                    </span>
+                    <span className="text-sm font-bold text-primary">P{load.offer}</span>
+                  </div>
+                  <div className="mt-2 space-y-1 text-xs text-card-foreground">
+                    <div className="flex items-center gap-2">
+                      <MapPin className="h-3.5 w-3.5 shrink-0 text-success" />
+                      <span className="truncate">{load.pickup}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Navigation className="h-3.5 w-3.5 shrink-0 text-primary" />
+                      <span className="truncate">{load.dropoff}</span>
+                    </div>
+                  </div>
+                  {load.load && (
+                    <p className="mt-1.5 truncate text-[11px] text-muted-foreground">{load.load}</p>
+                  )}
+                  <div className="mt-2 flex items-center justify-between">
+                    <span className="text-[11px] text-muted-foreground">{load.km} km</span>
+                    <button
+                      type="button"
+                      onClick={() => void accept(load)}
+                      disabled={acceptingId !== null}
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground disabled:opacity-60"
+                    >
+                      {acceptingId === load.id ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Check className="h-3.5 w-3.5" />
+                      )}
+                      Accept
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Panel>
+
         <Panel className="flex items-center justify-between">
           <div>
             <p className="text-sm font-semibold text-card-foreground">Availability</p>
@@ -370,7 +511,9 @@ function DriverHub() {
                       <FileText className="h-4 w-4 text-primary" /> {DOC_LABELS[kind]}
                     </span>
                     <span className="block truncate text-[11px] text-muted-foreground">
-                      {doc ? `${doc.fileName} · ${doc.status === "uploaded" ? "uploaded" : "selected"}` : "PDF or image"}
+                      {doc
+                        ? `${doc.fileName} · ${doc.status === "uploaded" ? "uploaded" : "selected"}`
+                        : "PDF or image"}
                     </span>
                   </span>
                   <span className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-primary px-2.5 py-1.5 text-xs font-bold text-primary-foreground">

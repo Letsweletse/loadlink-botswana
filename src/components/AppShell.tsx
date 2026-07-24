@@ -2,8 +2,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { Home, MapPin, Package, Truck, User } from "lucide-react";
 import { type ReactNode } from "react";
 
-const HOSTED_LOGO_URL =
-  "https://res.cloudinary.com/dyfecybo0/image/upload/f_auto,q_auto,w_128,h_128,c_fill/v1782459767/WhatsApp_Image_2026-05-23_at_15.51.54_mzlajs.jpg";
+const LOGO_URL = "/icons/icon-192.png";
 
 const TABS = [
   { to: "/", label: "Home", icon: Home },
@@ -24,7 +23,7 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
           <div className="flex items-center gap-3 px-4 py-3.5 sm:px-6">
             <Link to="/" className="flex min-w-0 items-center gap-3">
               <img
-                src={HOSTED_LOGO_URL}
+                src={LOGO_URL}
                 alt="VanLink"
                 style={{ display: "block" }}
                 className="h-10 w-10 rounded-md border border-border bg-white object-cover"

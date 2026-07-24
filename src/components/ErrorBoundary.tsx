@@ -53,7 +53,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
           style={{
             maxWidth: 520,
             margin: "40px auto",
-            background: "white",
+            background: "#fdfcfa",
             color: "#111827",
             borderRadius: 16,
             padding: 20,
@@ -64,7 +64,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
             style={{
               fontSize: 12,
               fontWeight: 800,
-              color: "#0b73d9",
+              color: "#46321e",
               letterSpacing: ".08em",
               textTransform: "uppercase",
             }}
@@ -86,8 +86,8 @@ export class ErrorBoundary extends React.Component<Props, State> {
               border: 0,
               borderRadius: 12,
               padding: 12,
-              background: "linear-gradient(135deg,#0b73d9,#2d9ff0)",
-              color: "white",
+              background: "linear-gradient(135deg,#c89a63,#e0c296)",
+              color: "#46321e",
               fontWeight: 800,
             }}
           >

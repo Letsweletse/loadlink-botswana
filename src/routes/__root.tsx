@@ -75,7 +75,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "Van-Link — On-demand Logistics in Botswana & SACU" },
       { name: "description", content: "Book vans and trucks on demand across Botswana and SACU. Live tracking, transparent fares, WhatsApp sign-in." },
-      { name: "theme-color", content: "#2a7bf2" },
+      { name: "theme-color", content: "#D2AA78" },
       { property: "og:title", content: "Van-Link — On-demand Logistics" },
       { property: "og:description", content: "Book vans and trucks on demand across Botswana and SACU." },
       { property: "og:type", content: "website" },

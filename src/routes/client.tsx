@@ -170,7 +170,7 @@ function ClientBooking() {
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Distance</p>
             <span className="text-sm font-semibold text-card-foreground">{distance} km</span>
           </div>
-          <input type="range" min={1} max={120} value={distance} onChange={(e) => setDistance(Number(e.target.value))} className="mt-3 w-full accent-[oklch(0.60_0.21_255)]" />
+          <input type="range" min={1} max={120} value={distance} onChange={(e) => setDistance(Number(e.target.value))} className="mt-3 w-full accent-[oklch(0.763_0.081_72.3)]" />
           <p className="mt-1 text-[11px] text-muted-foreground">Base fare covers up to 12 km. Beyond that: P{tier.perKm}/km.</p>
         </Panel>
 

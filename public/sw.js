@@ -1,5 +1,7 @@
-const CACHE_NAME = "vanlink-runtime-v5";
-const OFFLINE_URL = "/index.html";
+const CACHE_NAME = "vanlink-runtime-v6";
+// Under SSR there's no static index.html — "/" is the real server-rendered
+// home route, so precache that as the offline app shell instead.
+const OFFLINE_URL = "/";
 const APP_SHELL = [OFFLINE_URL, "/manifest.webmanifest"];
 const NAVIGATE_TIMEOUT_MS = 10000;
 

@@ -216,21 +216,24 @@ export function SignupMagic({ role }: { role: SignupRole }) {
       <div className="space-y-4 pb-6">
         <div
           className="vl-fade-in rounded-3xl p-5 text-white shadow-[var(--shadow-card)]"
-          style={{ background: "linear-gradient(135deg, var(--ink), #2b1f13)" }}
+          style={{ background: "linear-gradient(135deg, #46321E, #2E2114)" }}
         >
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[var(--shadow-soft)]">
+            <div
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full shadow-[var(--shadow-soft)]"
+              style={{ background: "#D2AA78", color: "#46321E" }}
+            >
               <Truck className="h-6 w-6" />
             </div>
             <div>
               <span className="block text-lg font-black tracking-[-0.02em]">Van-Link</span>
               <span className="block text-[11px] font-bold uppercase tracking-[0.16em] text-white/70">
-                {roleLabel(role)} account setup
+                On-demand logistics, Botswana
               </span>
             </div>
           </div>
           <p className="mt-4 text-sm leading-6 text-white/80">
-            Simple login. Verified email. One clean profile. No confusing codes.
+            {roleLabel(role)} account setup — simple login, verified email, one clean profile.
           </p>
         </div>
 

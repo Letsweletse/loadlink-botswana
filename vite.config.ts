@@ -13,6 +13,21 @@ export default defineConfig({
     server: { entry: "server" },
     router: { autoCodeSplitting: true },
   },
+  // Outside the Lovable sandbox the nitro deploy plugin is skipped by default, which left
+  // `vite build` emitting raw dist/client + dist/server with no host adapter — Vercel had
+  // nothing in .vercel/output to serve, hence 404s on every route in production. Force it on
+  // with the vercel preset so the build itself produces Vercel's Build Output API format.
+  // The output paths must be overridden back to the vercel preset's own defaults: this
+  // wrapper's base config otherwise hardcodes dist/client + dist/server (the cloudflare-module
+  // layout wrangler.jsonc expects), which isn't where Vercel's build step looks for output.
+  nitro: {
+    preset: process.env.NITRO_PRESET ?? "vercel",
+    output: {
+      dir: "{{ rootDir }}/.vercel/output",
+      serverDir: "{{ output.dir }}/functions/__server.func",
+      publicDir: "{{ output.dir }}/static/{{ baseURL }}",
+    },
+  },
   vite: {
     build: {
       target: "es2018",

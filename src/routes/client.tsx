@@ -1,10 +1,14 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { AppShell, Panel, PrimaryButton } from "@/components/AppShell";
-import { TRUCK_TIERS, estimateFare, type TruckSize } from "@/lib/vanlink";
+import { BASE_RADIUS_KM, TRUCK_TIERS, estimateFare, type TruckSize } from "@/lib/vanlink";
 import { MapPin, Navigation, Plus, Minus, Truck, LocateFixed, ExternalLink } from "lucide-react";
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { createLoad, localUser, makeLoadId } from "@/lib/supabase";
+import { geocodeAddress, getDrivingDistanceKm } from "@/lib/mapbox";
+
+const DEFAULT_DISTANCE_KM = 8;
+const DISTANCE_DEBOUNCE_MS = 600;
 
 export const Route = createFileRoute("/client")({
   validateSearch: (s: Record<string, unknown>) => ({ size: (s.size as TruckSize) ?? "mini" }),
@@ -45,16 +49,67 @@ function ClientBooking() {
   const [pickup, setPickup] = useState("");
   const [drop, setDrop] = useState("");
   const [load, setLoad] = useState("");
-  const [distance, setDistance] = useState(8);
+  const [distance, setDistance] = useState(DEFAULT_DISTANCE_KM);
+  const [distanceStatus, setDistanceStatus] = useState<"idle" | "calculating" | "calculated" | "error">("idle");
+  const [distanceError, setDistanceError] = useState<string | null>(null);
   const [bump, setBump] = useState(0);
   const [saving, setSaving] = useState(false);
   const [locating, setLocating] = useState(false);
 
   const tier = TRUCK_TIERS[size];
   const baseEstimate = useMemo(() => estimateFare(size, distance), [size, distance]);
+  const distanceCharge = Math.max(0, baseEstimate - tier.baseFare);
+  const extraKm = Math.max(0, distance - BASE_RADIUS_KM);
   const fare = baseEstimate + bump;
   const mapReady = pickup.trim().length > 0 || drop.trim().length > 0;
   const directionsReady = pickup.trim().length > 0 && drop.trim().length > 0;
+
+  // Auto-calculate real driving distance whenever both addresses are present,
+  // debounced so we don't geocode/route on every keystroke. Falls back to the
+  // last known distance (never blocks booking) if Mapbox can't resolve either
+  // address or find a route.
+  useEffect(() => {
+    if (!directionsReady) {
+      setDistanceStatus("idle");
+      setDistanceError(null);
+      return;
+    }
+
+    let cancelled = false;
+    setDistanceStatus("calculating");
+    setDistanceError(null);
+
+    const timer = setTimeout(async () => {
+      const [pickupPoint, dropoffPoint] = await Promise.all([
+        geocodeAddress(pickup),
+        geocodeAddress(drop),
+      ]);
+      if (cancelled) return;
+
+      if (!pickupPoint || !dropoffPoint) {
+        setDistanceStatus("error");
+        setDistanceError("Couldn't find that location — try being more specific.");
+        return;
+      }
+
+      const km = await getDrivingDistanceKm(pickupPoint, dropoffPoint);
+      if (cancelled) return;
+
+      if (km == null) {
+        setDistanceStatus("error");
+        setDistanceError("Couldn't calculate a driving route between those locations.");
+        return;
+      }
+
+      setDistance(km);
+      setDistanceStatus("calculated");
+    }, DISTANCE_DEBOUNCE_MS);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [pickup, drop, directionsReady]);
 
   function useCurrentLocation() {
     if (!("geolocation" in navigator)) {
@@ -167,11 +222,18 @@ function ClientBooking() {
 
         <Panel>
           <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Distance</p>
-            <span className="text-sm font-semibold text-card-foreground">{distance} km</span>
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Driving distance</p>
+            <span className="text-sm font-semibold text-card-foreground">
+              {distanceStatus === "calculating" ? "Calculating…" : `${distance} km`}
+            </span>
           </div>
-          <input type="range" min={1} max={120} value={distance} onChange={(e) => setDistance(Number(e.target.value))} className="mt-3 w-full accent-[oklch(0.763_0.081_72.3)]" />
-          <p className="mt-1 text-[11px] text-muted-foreground">Base fare covers up to 12 km. Beyond that: P{tier.perKm}/km.</p>
+          <p className={`mt-1 text-[11px] ${distanceStatus === "error" ? "text-amber-600" : "text-muted-foreground"}`}>
+            {distanceStatus === "error"
+              ? distanceError
+              : directionsReady
+                ? "Real driving distance via Mapbox."
+                : "Enter pick-up and drop-off to calculate the distance."}
+          </p>
         </Panel>
 
         <div className="rounded-2xl p-5 text-primary-foreground shadow-[var(--shadow-elegant)] vl-fade-in" style={{ background: "var(--gradient-primary)" }}>
@@ -179,6 +241,26 @@ function ClientBooking() {
           <div className="mt-1 flex items-baseline gap-2">
             <span className="text-4xl font-extrabold">P{fare}</span>
             <span className="text-sm text-primary-foreground/80">service fee included</span>
+          </div>
+          <div className="mt-3 space-y-1 border-t border-white/15 pt-3 text-xs text-primary-foreground/85">
+            <div className="flex items-center justify-between">
+              <span>Base fare (covers first {BASE_RADIUS_KM} km)</span>
+              <span>P{tier.baseFare}</span>
+            </div>
+            {distanceCharge > 0 && (
+              <div className="flex items-center justify-between">
+                <span>
+                  Distance charge ({extraKm.toFixed(1)} km × P{tier.perKm}/km)
+                </span>
+                <span>P{distanceCharge}</span>
+              </div>
+            )}
+            {bump > 0 && (
+              <div className="flex items-center justify-between">
+                <span>Boost</span>
+                <span>P{bump}</span>
+              </div>
+            )}
           </div>
           <div className="mt-4 flex items-center gap-2">
             <button onClick={() => setBump((b) => Math.max(0, b - 50))} className="rounded-lg bg-white/15 p-2"><Minus className="h-4 w-4" /></button>

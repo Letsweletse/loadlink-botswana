@@ -3,6 +3,7 @@ import { AppShell, Panel } from "@/components/AppShell";
 import { MapPin, Phone, MessageCircle, Navigation, ExternalLink, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { fetchLoad, type LoadRecord } from "@/lib/supabase";
+import { TrackingMap } from "@/components/TrackingMap";
 
 export const Route = createFileRoute("/track")({ component: Track });
 
@@ -15,10 +16,6 @@ function mapsSearchUrl(value: string) {
 
 function mapsDirectionsUrl(pickup: string, dropoff: string) {
   return `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(pickup)}&destination=${encodeURIComponent(dropoff)}`;
-}
-
-function mapsDirectionsEmbedUrl(pickup: string, dropoff: string) {
-  return `https://maps.google.com/maps?saddr=${encodeURIComponent(pickup)}&daddr=${encodeURIComponent(dropoff)}&output=embed`;
 }
 
 function safeStorageGet(key: string) {
@@ -152,16 +149,11 @@ function Track() {
     <AppShell title="Live tracking">
       <div className="space-y-4">
         <div className="relative h-[420px] w-full overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--shadow-card)] vl-fade-in">
-          <iframe
-            title={load ? "Trip route map" : "VanLink Botswana map"}
-            src={
-              load
-                ? mapsDirectionsEmbedUrl(load.pickup, load.dropoff)
-                : "https://maps.google.com/maps?q=Gaborone%20Botswana&output=embed"
-            }
-            className="h-full w-full border-0"
-            loading="lazy"
-            referrerPolicy="no-referrer-when-downgrade"
+          <TrackingMap
+            pickup={load?.pickup ?? ""}
+            dropoff={load?.dropoff ?? ""}
+            driverLat={load?.driver_lat}
+            driverLng={load?.driver_lng}
           />
           <div className="absolute left-3 top-3 rounded-full bg-ink px-3 py-1 text-[10px] font-semibold text-white shadow-[var(--shadow-elegant)]">
             {load?.status || "Waiting"}

@@ -24,8 +24,8 @@ export const TRUCK_TIERS: Record<
   medium: {
     label: "Medium Truck",
     capacity: "Under 7 tons",
-    baseFare: 700,
-    perKm: 18,
+    baseFare: 450,
+    perKm: 14,
     deposit: 100,
     description: "Office moves, bulk goods",
     licence: "Code C1 + PrDP",
@@ -33,8 +33,8 @@ export const TRUCK_TIERS: Record<
   big: {
     label: "Big Truck",
     capacity: "Over 7 tons",
-    baseFare: 1500,
-    perKm: 32,
+    baseFare: 750,
+    perKm: 24,
     deposit: 200,
     description: "Heavy cargo, cross-border (SACU)",
     licence: "Code C + PrDP + BA Permit",

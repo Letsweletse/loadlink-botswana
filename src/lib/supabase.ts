@@ -63,6 +63,9 @@ export type LoadRecord = {
   status: LoadStatus;
   driver?: string | null;
   driver_phone?: string | null;
+  driver_lat?: number | null;
+  driver_lng?: number | null;
+  location_updated_at?: string | null;
   created_at?: string;
   accepted_at?: string | null;
 };
@@ -168,6 +171,43 @@ export async function fetchLoad(id: string) {
   } catch (error) {
     console.warn("Could not refresh trip yet", error);
     return cachedTrip;
+  }
+}
+
+export async function fetchActiveLoadForDriver(phone: string) {
+  try {
+    const db = requireClient();
+    const { data, error } = await withTimeout(
+      db
+        .from("loads")
+        .select("*")
+        .eq("driver_phone", normalizePhone(phone))
+        .in("status", ["Accepted", "In transit"])
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      "Active load",
+    );
+    if (error) throw error;
+    return (data as LoadRecord | null) || null;
+  } catch (error) {
+    console.warn("Could not check for an active load yet", error);
+    return null;
+  }
+}
+
+// Best-effort: a dropped GPS ping shouldn't surface an error to the driver,
+// so failures are logged and swallowed rather than thrown.
+export async function updateDriverLocation(loadId: string, lat: number, lng: number) {
+  try {
+    const db = requireClient();
+    const { error } = await db
+      .from("loads")
+      .update({ driver_lat: lat, driver_lng: lng, location_updated_at: new Date().toISOString() })
+      .eq("id", loadId);
+    if (error) throw error;
+  } catch (error) {
+    console.warn("Could not save driver location", error);
   }
 }
 

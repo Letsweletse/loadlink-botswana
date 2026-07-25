@@ -15,6 +15,7 @@ import {
   Check,
   Loader2,
   RefreshCw,
+  Radio,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -22,6 +23,7 @@ import {
   acceptLoad,
   createPaymentRequest,
   createTruck,
+  fetchActiveLoadForDriver,
   fetchOpenLoads,
   fetchTrucksByPhone,
   fetchWalletTransactions,
@@ -36,6 +38,7 @@ import {
   type WalletTransaction,
 } from "@/lib/supabase";
 import { safeJsonParse, safeStorageGet, safeStorageSet } from "@/lib/safe-storage";
+import { useDriverLocationTracking } from "@/hooks/use-driver-location-tracking";
 
 export const Route = createFileRoute("/driver")({
   component: DriverHub,
@@ -87,7 +90,34 @@ function DriverHub() {
   const [openLoads, setOpenLoads] = useState<LoadRecord[]>([]);
   const [loadingOpenLoads, setLoadingOpenLoads] = useState(true);
   const [acceptingId, setAcceptingId] = useState<string | null>(null);
+  const [activeLoad, setActiveLoad] = useState<LoadRecord | null>(null);
   const tier = TRUCK_TIERS[size];
+
+  const loadActiveLoad = useCallback(async () => {
+    if (!user?.phone) {
+      setActiveLoad(null);
+      return;
+    }
+    const load = await fetchActiveLoadForDriver(user.phone);
+    setActiveLoad(load);
+  }, [user?.phone]);
+
+  useEffect(() => {
+    void loadActiveLoad();
+  }, [loadActiveLoad]);
+
+  // Re-check periodically so the "sharing location" state clears itself once
+  // the load is completed/cancelled elsewhere (e.g. by the admin or customer).
+  useEffect(() => {
+    if (!activeLoad) return;
+    const timer = setInterval(() => void loadActiveLoad(), 20000);
+    return () => clearInterval(timer);
+  }, [activeLoad, loadActiveLoad]);
+
+  useDriverLocationTracking(
+    activeLoad?.id,
+    Boolean(activeLoad && ["Accepted", "In transit"].includes(activeLoad.status)),
+  );
 
   const loadOpenLoads = useCallback(async () => {
     setLoadingOpenLoads(true);
@@ -123,6 +153,7 @@ function DriverHub() {
       });
       setOpenLoads((prev) => prev.filter((item) => item.id !== load.id));
       void loadDriverData();
+      void loadActiveLoad();
     } catch (error) {
       if (error instanceof LoadAlreadyTakenError) {
         toast.error("Someone already took this load", {
@@ -357,6 +388,22 @@ function DriverHub() {
             <BadgeCheck className="h-4 w-4" /> Van-Link keeps 10% per completed load.
           </div>
         </div>
+
+        {activeLoad && (
+          <Panel className="flex items-center gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-success/15 text-success">
+              <Radio className="h-4 w-4 animate-pulse" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-card-foreground">
+                Sharing live location for {activeLoad.id}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {activeLoad.pickup} → {activeLoad.dropoff}
+              </p>
+            </div>
+          </Panel>
+        )}
 
         <Panel>
           <div className="mb-3 flex items-center justify-between">

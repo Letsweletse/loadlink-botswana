@@ -25,6 +25,7 @@ import {
   fetchOpenLoads,
   fetchTrucksByPhone,
   fetchWalletTransactions,
+  InsufficientWalletBalanceError,
   isSupabaseConfigured,
   LoadAlreadyTakenError,
   localUser,
@@ -121,12 +122,17 @@ function DriverHub() {
         description: "Contact the customer to confirm pick-up.",
       });
       setOpenLoads((prev) => prev.filter((item) => item.id !== load.id));
+      void loadDriverData();
     } catch (error) {
       if (error instanceof LoadAlreadyTakenError) {
         toast.error("Someone already took this load", {
           description: "It's no longer available.",
         });
         setOpenLoads((prev) => prev.filter((item) => item.id !== load.id));
+      } else if (error instanceof InsufficientWalletBalanceError) {
+        toast.error("Wallet balance too low", {
+          description: "Top up before accepting this load.",
+        });
       } else {
         console.error(error);
         toast.error("Could not accept load", { description: "Please try again." });
@@ -255,7 +261,7 @@ function DriverHub() {
         provider: "orange_money",
         pay_to_number: ORANGE_MONEY_PAY_TO_NUMBER,
         status: "pending",
-        note: `${tier.label} activation deposit · pending manual verification`,
+        notes: `${tier.label} activation deposit · pending manual verification`,
       });
       toast.success("Orange Money payment request saved", {
         description: `Pay P${tier.deposit} to ${ORANGE_MONEY_PAY_TO_NUMBER}. Admin must verify before wallet credit.`,

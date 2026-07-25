@@ -2,8 +2,8 @@ import { createClient } from "@supabase/supabase-js";
 import type { TruckSize } from "./vanlink";
 import { safeJsonParse, safeStorageGet, safeStorageRemove, safeStorageSet } from "./safe-storage";
 
-const fallbackSupabaseUrl = "https://kcgsxxwgzrmsnnxvpkvi.supabase.co";
-const fallbackSupabaseAnonKey = "sb_publishable_vZ0E2Rkj7yQdhfWd66O1gg_gq31NgZp";
+const fallbackSupabaseUrl = "https://ebvjnirbkyixgwxahdpe.supabase.co";
+const fallbackSupabaseAnonKey = "sb_publishable_C7nBRiS7OwDEJh-j9jxjQQ_t7rpMPQy";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || fallbackSupabaseUrl;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || fallbackSupabaseAnonKey;
@@ -64,6 +64,7 @@ export type LoadRecord = {
   driver?: string | null;
   driver_phone?: string | null;
   created_at?: string;
+  accepted_at?: string | null;
 };
 
 export type TruckRecord = {
@@ -86,6 +87,7 @@ export type TruckRecord = {
 
 export type ProfileRecord = {
   id?: string;
+  user_id?: string | null;
   role: "customer" | "driver" | "admin" | string;
   name: string;
   phone: string;
@@ -98,9 +100,9 @@ export type ProfileRecord = {
 export type WalletTransaction = {
   id?: string;
   phone: string;
-  type: "deposit" | "commission" | "payout" | "adjustment" | string;
+  transaction_type: "deposit" | "commission" | "adjustment" | "load_fee" | "refund" | string;
   amount: number;
-  note?: string | null;
+  notes?: string | null;
   load_id?: string | null;
   created_at?: string;
 };
@@ -111,8 +113,8 @@ export type PaymentRequestRecord = {
   amount: number;
   provider: "orange_money" | string;
   pay_to_number: string;
-  status: "pending" | "verified" | "cancelled" | string;
-  note?: string | null;
+  status: "pending" | "approved" | "rejected" | string;
+  notes?: string | null;
   created_at?: string;
 };
 
@@ -257,42 +259,50 @@ export class LoadAlreadyTakenError extends Error {
   }
 }
 
+export class InsufficientWalletBalanceError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "InsufficientWalletBalanceError";
+  }
+}
+
 export async function acceptLoad(load: LoadRecord, driver: { name: string; phone: string }) {
   const db = requireClient();
+  // accept_load() is a SECURITY DEFINER Postgres function: it row-locks the
+  // load, re-checks status === 'Broadcasting' (race guard against two drivers
+  // accepting at once), and atomically deducts the 10% load fee from the
+  // driver's wallet before flipping status to Accepted. All of that happens
+  // in one transaction server-side so there's no window where a driver could
+  // be charged without the load actually being assigned to them, or vice versa.
   const { data, error } = await withTimeout(
-    db
-      .from("loads")
-      .update({
-        status: "Accepted",
-        driver: driver.name,
-        driver_phone: normalizePhone(driver.phone),
-      })
-      .eq("id", load.id)
-      .eq("status", "Broadcasting")
-      .select()
-      .maybeSingle(),
+    db.rpc("accept_load", {
+      p_load_id: load.id,
+      p_driver_name: driver.name,
+      p_driver_phone: normalizePhone(driver.phone),
+    }),
     "Accept load",
   );
-  if (error) throw error;
-  // The update only matches a row if the load was still Broadcasting at write
-  // time, so a null result means another driver already accepted it first.
-  if (!data) throw new LoadAlreadyTakenError(load.id);
+  if (error) {
+    if (
+      error.message?.includes("LOAD_ALREADY_TAKEN") ||
+      error.message?.includes("LOAD_NOT_FOUND")
+    ) {
+      throw new LoadAlreadyTakenError(load.id);
+    }
+    if (error.message?.includes("INSUFFICIENT_WALLET_BALANCE")) {
+      throw new InsufficientWalletBalanceError(
+        "Your wallet balance is too low to accept this load. Top up first.",
+      );
+    }
+    throw error;
+  }
   return data as LoadRecord;
 }
 
 export async function completeLoad(load: LoadRecord) {
-  const commission = Math.round(Number(load.offer || 0) * 0.1);
-  const updated = await updateLoad(load.id, { status: "Completed" });
-  if (load.driver_phone) {
-    await createWalletTransaction({
-      phone: load.driver_phone,
-      type: "commission",
-      amount: -commission,
-      note: `10% commission for ${load.id}`,
-      load_id: load.id,
-    }).catch(() => null);
-  }
-  return updated;
+  // The 10% platform fee is already deducted as a 'load_fee' transaction at
+  // accept time (see acceptLoad), so completing a load is just a status flip.
+  return updateLoad(load.id, { status: "Completed" });
 }
 
 export async function createTruck(truck: TruckRecord) {
@@ -357,8 +367,18 @@ export async function upsertProfile(profile: {
 
   try {
     const db = requireClient();
+    // RLS on profiles is scoped to user_id = auth.uid(), so every write must
+    // carry the signed-in user's id or the insert/claim will be rejected.
+    const { data: sessionData } = await db.auth.getSession();
+    const userId = sessionData.session?.user?.id;
+    if (!userId) throw new Error("Not signed in");
+
     const { data, error } = await withTimeout(
-      db.from("profiles").upsert(cleanProfile, { onConflict: "phone" }).select().single(),
+      db
+        .from("profiles")
+        .upsert({ ...cleanProfile, user_id: userId }, { onConflict: "phone" })
+        .select()
+        .single(),
       "Profile",
     );
     if (error) throw error;
@@ -456,6 +476,36 @@ export async function fetchWalletTransactions(phone: string) {
     console.warn("Could not refresh wallet yet", error);
     return cached;
   }
+}
+
+export async function fetchPaymentRequests() {
+  const db = requireClient();
+  const { data, error } = await withTimeout(
+    db.from("payment_requests").select("*").order("created_at", { ascending: false }),
+    "Payment requests",
+  );
+  if (error) throw error;
+  return (data || []) as PaymentRequestRecord[];
+}
+
+export async function verifyPaymentRequest(requestId: string) {
+  const db = requireClient();
+  const { data, error } = await withTimeout(
+    db.rpc("admin_verify_payment", { p_request_id: requestId }),
+    "Verify payment",
+  );
+  if (error) throw error;
+  return data as PaymentRequestRecord;
+}
+
+export async function cancelLoadAsAdmin(loadId: string) {
+  const db = requireClient();
+  const { data, error } = await withTimeout(
+    db.rpc("admin_cancel_load", { p_load_id: loadId }),
+    "Cancel load",
+  );
+  if (error) throw error;
+  return data as LoadRecord;
 }
 
 export function makeLoadId() {

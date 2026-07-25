@@ -1,8 +1,9 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Camera, CheckCircle2, Mail, Phone, ShieldCheck, Truck, User } from "lucide-react";
+import { BadgeCheck, Camera, CheckCircle2, Mail, Phone, Truck, User } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { AppShell, Panel, PrimaryButton } from "@/components/AppShell";
+import { GoogleSignInButton } from "@/components/GoogleSignInButton";
 import { isSupabaseConfigured, supabase, upsertProfile } from "@/lib/supabase";
 import { safeJsonParse, safeStorageGet, safeStorageRemove, safeStorageSet } from "@/lib/safe-storage";
 
@@ -213,21 +214,41 @@ export function SignupMagic({ role }: { role: SignupRole }) {
   return (
     <AppShell title="Account">
       <div className="space-y-4 pb-6">
-        <div className="vl-fade-in rounded-3xl bg-gradient-to-br from-primary to-accent p-5 text-primary-foreground shadow-[var(--shadow-card)]">
-          <span className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-[11px] font-extrabold uppercase tracking-[0.18em]">
-            {role === "driver" ? <Truck className="h-3.5 w-3.5" /> : <User className="h-3.5 w-3.5" />}
-            {roleLabel(role)} account
-          </span>
-          <h1 className="mt-4 text-2xl font-black leading-tight">VanLink account setup</h1>
-          <p className="mt-2 text-sm leading-6 text-primary-foreground/85">
+        <div
+          className="vl-fade-in rounded-3xl p-5 text-white shadow-[var(--shadow-card)]"
+          style={{ background: "linear-gradient(135deg, var(--ink), #2b1f13)" }}
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[var(--shadow-soft)]">
+              <Truck className="h-6 w-6" />
+            </div>
+            <div>
+              <span className="block text-lg font-black tracking-[-0.02em]">Van-Link</span>
+              <span className="block text-[11px] font-bold uppercase tracking-[0.16em] text-white/70">
+                {roleLabel(role)} account setup
+              </span>
+            </div>
+          </div>
+          <p className="mt-4 text-sm leading-6 text-white/80">
             Simple login. Verified email. One clean profile. No confusing codes.
           </p>
         </div>
 
-        <div className="grid grid-cols-3 gap-2 text-center text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
-          <div className={`rounded-xl px-2 py-2 ${step === "email" || step === "sent" ? "bg-primary text-primary-foreground" : "bg-card"}`}>1 Email</div>
-          <div className={`rounded-xl px-2 py-2 ${step === "profile" ? "bg-primary text-primary-foreground" : "bg-card"}`}>2 Profile</div>
-          <div className={`rounded-xl px-2 py-2 ${step === "done" ? "bg-success text-white" : "bg-card"}`}>3 Done</div>
+        <div className="grid grid-cols-2 gap-2 text-center text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+          <div
+            className={`rounded-xl px-2 py-2 ${
+              step === "email" || step === "sent" ? "bg-primary text-primary-foreground" : "bg-card"
+            }`}
+          >
+            Step 1 of 2 · Email
+          </div>
+          <div
+            className={`rounded-xl px-2 py-2 ${
+              step === "profile" || step === "done" ? "bg-primary text-primary-foreground" : "bg-card"
+            }`}
+          >
+            Step 2 of 2 · Profile
+          </div>
         </div>
 
         {checking && <Panel><p className="text-sm text-muted-foreground">Checking your login...</p></Panel>}
@@ -244,6 +265,15 @@ export function SignupMagic({ role }: { role: SignupRole }) {
                 <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="your@email.com" className="input-mobile" />
               </div>
               <PrimaryButton onClick={sendMagicLink} disabled={saving}>{saving ? "Sending..." : "Email me login link"}</PrimaryButton>
+              <p className="text-center text-[11px] leading-5 text-muted-foreground">
+                No password needed — we'll email you a secure sign-in link.
+              </p>
+              <div className="flex items-center gap-3 pt-1 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                <span className="h-px flex-1 bg-border" />
+                or
+                <span className="h-px flex-1 bg-border" />
+              </div>
+              <GoogleSignInButton role={role} />
             </div>
           </Panel>
         )}
@@ -285,14 +315,46 @@ export function SignupMagic({ role }: { role: SignupRole }) {
                 </label>
               </div>
 
+              <div>
+                <span className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground">Email</span>
+                <div className="flex items-center justify-between gap-2 rounded-2xl border border-success/25 bg-success/10 px-3 py-3">
+                  <span className="flex min-w-0 items-center gap-2 text-sm font-semibold text-card-foreground">
+                    <CheckCircle2 className="h-4 w-4 shrink-0 text-success" />
+                    <span className="truncate">{email}</span>
+                  </span>
+                  <span className="shrink-0 rounded-full bg-success/15 px-2 py-1 text-[10px] font-extrabold uppercase tracking-wider text-success">
+                    Verified
+                  </span>
+                </div>
+              </div>
+
               <ProfileInput icon={User} label="Full name" value={name} onChange={setName} placeholder="e.g. Kago Mokoena" />
               <ProfileInput icon={Phone} label="WhatsApp / phone" value={phone} onChange={setPhone} placeholder="+267 75560140" />
-              <ProfileInput icon={Mail} label="Email" value={email} onChange={setEmail} placeholder="your@email.com" disabled />
 
-              <div className="rounded-2xl border border-primary/15 bg-primary/10 p-3 text-xs leading-5 text-foreground/75">
-                <div className="mb-1 flex items-center gap-2 font-extrabold text-foreground">
-                  <ShieldCheck className="h-4 w-4 text-primary" /> Verified as {roleLabel(role)}
+              <div>
+                <span className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground">Account type</span>
+                <div className="grid grid-cols-2 gap-2">
+                  <div
+                    className={`flex flex-col items-center gap-1.5 rounded-2xl border p-3 text-center transition ${
+                      role === "client" ? "border-primary bg-primary/10" : "border-border bg-secondary opacity-50"
+                    }`}
+                  >
+                    <User className={`h-5 w-5 ${role === "client" ? "text-primary" : "text-muted-foreground"}`} />
+                    <span className="text-xs font-bold text-card-foreground">Customer</span>
+                  </div>
+                  <div
+                    className={`flex flex-col items-center gap-1.5 rounded-2xl border p-3 text-center transition ${
+                      role === "driver" ? "border-primary bg-primary/10" : "border-border bg-secondary opacity-50"
+                    }`}
+                  >
+                    <Truck className={`h-5 w-5 ${role === "driver" ? "text-primary" : "text-muted-foreground"}`} />
+                    <span className="text-xs font-bold text-card-foreground">Driver</span>
+                  </div>
                 </div>
+              </div>
+
+              <div className="flex items-center gap-2 rounded-2xl border border-primary/15 bg-primary/10 p-3 text-xs leading-5 text-foreground/75">
+                <BadgeCheck className="h-4 w-4 shrink-0 text-primary" />
                 {role === "driver" ? "After this, upload your licence, licence disc and BA permit from the driver dashboard." : "After this, you can request a truck from the client dashboard."}
               </div>
 

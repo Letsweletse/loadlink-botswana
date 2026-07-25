@@ -1,9 +1,17 @@
-const CACHE_NAME = "vanlink-runtime-v6";
-// Under SSR there's no static index.html — "/" is the real server-rendered
-// home route, so precache that as the offline app shell instead.
-const OFFLINE_URL = "/";
-const APP_SHELL = [OFFLINE_URL, "/manifest.webmanifest"];
-const NAVIGATE_TIMEOUT_MS = 10000;
+// Bumping this forces every device that already has an old worker installed
+// (from before this fix) to install fresh and purge its old cache on next
+// visit, instead of being stuck on whatever this file's SW last was.
+const CACHE_NAME = "vanlink-runtime-v7";
+// Server-rendered HTML embeds this build's specific hashed JS chunk URLs
+// (e.g. /assets/index-CoP2puzP.js). Precaching "/" and serving it later as a
+// fallback meant a slow-network visit could get served a PAST deploy's HTML
+// pointing at chunk hashes that no longer exist once a newer deploy has
+// shipped — the exact "frozen/blank on mobile" failure this project has hit
+// repeatedly. Only precache the hash-free manifest; never cache "/" itself.
+const APP_SHELL = ["/manifest.webmanifest"];
+// Generous enough for a slow (not dead) Botswana mobile connection to still
+// finish a real network fetch instead of being cut off into the fallback.
+const NAVIGATE_TIMEOUT_MS = 20000;
 
 // Last-resort body if the network is down AND the app shell was never
 // successfully cached (e.g. the very first visit was offline). This is the
@@ -102,16 +110,14 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // App routes: always try network first so login/signup/profile screens stay
+  // App routes: always network-first so login/signup/profile screens stay
   // fresh. A timeout keeps a stalled mobile connection from hanging the
-  // navigation forever, and the cache/offline fallback chain always ends in a
-  // real Response, never `undefined` (which throws instead of failing softly).
+  // navigation forever. The fallback is always the static, hash-free "offline"
+  // page — never a cached copy of "/" — so a slow/failed request can never
+  // resolve into a stale shell pointing at JS chunks from an old deploy.
   if (request.mode === "navigate") {
     event.respondWith(
-      withTimeout(fetch(request), NAVIGATE_TIMEOUT_MS)
-        .catch(() =>
-          caches.match(OFFLINE_URL).then((cached) => cached || offlineFallbackResponse()),
-        ),
+      withTimeout(fetch(request), NAVIGATE_TIMEOUT_MS).catch(offlineFallbackResponse),
     );
     return;
   }

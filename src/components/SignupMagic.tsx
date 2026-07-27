@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { AppShell, Panel, PrimaryButton } from "@/components/AppShell";
 import { GoogleSignInButton } from "@/components/GoogleSignInButton";
-import { isSupabaseConfigured, supabase, upsertProfile } from "@/lib/supabase";
+import { isSupabaseConfigured, normalizePhone, supabase, upsertProfile } from "@/lib/supabase";
 import { safeJsonParse, safeStorageGet, safeStorageRemove, safeStorageSet } from "@/lib/safe-storage";
 
 type SignupRole = "client" | "driver";
@@ -25,13 +25,6 @@ type SavedProfile = {
 
 function normalizeEmail(value: string) {
   return String(value || "").trim().toLowerCase();
-}
-
-function normalizePhone(value: string) {
-  const digits = String(value || "").replace(/\D/g, "");
-  if (digits.startsWith("267") && digits.length === 11) return `+${digits}`;
-  if (digits.length === 8) return `+267${digits}`;
-  return String(value || "").trim();
 }
 
 function roleLabel(role: SignupRole) {

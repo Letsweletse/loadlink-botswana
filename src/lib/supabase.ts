@@ -17,7 +17,7 @@ function requireClient() {
   return supabase;
 }
 
-function normalizePhone(phone: string) {
+export function normalizePhone(phone: string) {
   const digits = String(phone || "").replace(/\D/g, "");
   if (digits.startsWith("267")) return `+${digits}`;
   if (digits.length === 8) return `+267${digits}`;

@@ -33,6 +33,8 @@ import {
   localUser,
   supabase,
   updateTruck,
+  TRUCK_DOCUMENT_LABELS as DOC_LABELS,
+  type TruckDocumentKind as DriverDocumentKind,
   type LoadRecord,
   type TruckRecord,
   type WalletTransaction,
@@ -44,8 +46,6 @@ export const Route = createFileRoute("/driver")({
   component: DriverHub,
 });
 
-type DriverDocumentKind = "driver_licence" | "licence_disc" | "ba_permit";
-
 type DriverDocument = {
   kind: DriverDocumentKind;
   fileName: string;
@@ -55,12 +55,6 @@ type DriverDocument = {
   status: "uploaded" | "saved_on_device";
   storagePath?: string;
   error?: string;
-};
-
-const DOC_LABELS: Record<DriverDocumentKind, string> = {
-  driver_licence: "Driver licence",
-  licence_disc: "Licence disc",
-  ba_permit: "BA permit",
 };
 
 function documentsKey(phone?: string | null) {

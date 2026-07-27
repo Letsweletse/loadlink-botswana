@@ -227,6 +227,67 @@ export async function fetchTrucks() {
   }
 }
 
+export async function fetchTrucksByStatus(status: string) {
+  const cached = readJson<TruckRecord[]>("vanlink_trucks", []);
+  try {
+    const db = requireClient();
+    const { data, error } = await withTimeout(
+      db.from("trucks").select("*").eq("status", status).order("created_at", { ascending: false }),
+      "Pending trucks",
+    );
+    if (error) throw error;
+    return (data || []) as TruckRecord[];
+  } catch (error) {
+    console.warn("Could not load pending trucks yet", error);
+    return cached.filter((truck) => truck.status === status);
+  }
+}
+
+export type TruckDocumentKind = "driver_licence" | "licence_disc" | "ba_permit";
+
+export const TRUCK_DOCUMENT_LABELS: Record<TruckDocumentKind, string> = {
+  driver_licence: "Driver licence",
+  licence_disc: "Licence disc",
+  ba_permit: "BA permit",
+};
+
+// Admin document review reads from the same "driver-documents" bucket/path
+// convention the driver upload flow writes to (see uploadDriverDocument in
+// routes/driver.tsx: `${folder}/${kind}-${timestamp}-${filename}`), so no
+// separate document table is needed — the storage listing is the source of
+// truth. Requires the admin's session to have storage read access to other
+// drivers' folders; if that policy isn't in place yet, this just resolves to
+// an empty map and the review UI shows "not uploaded" placeholders.
+export async function fetchTruckDocuments(phone: string) {
+  const result: Partial<Record<TruckDocumentKind, string>> = {};
+  if (!isSupabaseConfigured || !supabase) return result;
+
+  const folder = normalizePhone(phone).replace(/\D/g, "");
+  if (!folder) return result;
+
+  try {
+    const { data, error } = await supabase.storage.from("driver-documents").list(folder, {
+      limit: 100,
+      sortBy: { column: "created_at", order: "desc" },
+    });
+    if (error || !data) return result;
+
+    const kinds: TruckDocumentKind[] = ["driver_licence", "licence_disc", "ba_permit"];
+    for (const kind of kinds) {
+      const file = data.find((item) => item.name.startsWith(`${kind}-`));
+      if (!file) continue;
+      const { data: pub } = supabase.storage
+        .from("driver-documents")
+        .getPublicUrl(`${folder}/${file.name}`);
+      result[kind] = pub.publicUrl;
+    }
+    return result;
+  } catch (error) {
+    console.warn("Could not load driver documents yet", error);
+    return result;
+  }
+}
+
 export async function fetchTrucksByPhone(phone: string) {
   const cached = readJson<TruckRecord[]>("vanlink_trucks", []);
   try {
@@ -388,6 +449,14 @@ export async function updateTruck(id: string, updates: Partial<TruckRecord>) {
     console.warn("Truck update saved locally until service responds", error);
     return localTruck;
   }
+}
+
+// Plain status flip, same shape as completeLoad — approving/rejecting a
+// registration has no wallet or refund side effects, so unlike
+// cancelLoadAsAdmin/verifyPaymentRequest it doesn't need a SECURITY DEFINER
+// RPC, just an admin-scoped RLS policy on trucks.
+export async function reviewTruckRegistration(id: string, approve: boolean) {
+  return updateTruck(id, { status: approve ? "Active" : "Suspended" });
 }
 
 export async function upsertProfile(profile: {

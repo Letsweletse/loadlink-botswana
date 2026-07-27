@@ -8,16 +8,23 @@ import {
   fetchLoads,
   fetchPaymentRequests,
   fetchProfile,
+  fetchTruckDocuments,
   fetchTrucks,
   localUser,
+  reviewTruckRegistration,
   verifyPaymentRequest,
+  TRUCK_DOCUMENT_LABELS,
   type LoadRecord,
   type PaymentRequestRecord,
+  type TruckDocumentKind,
   type TruckRecord,
 } from "@/lib/supabase";
 import {
+  AlertCircle,
   BadgeCheck,
   Check,
+  Eye,
+  FileText,
   Loader2,
   RefreshCw,
   ShieldAlert,
@@ -30,6 +37,45 @@ export const Route = createFileRoute("/admin")({
 });
 
 const ACTIVE_LOAD_STATUSES = new Set(["Accepted", "In transit"]);
+const PENDING_TRUCK_STATUS = "Pending review";
+const DOC_KINDS = Object.keys(TRUCK_DOCUMENT_LABELS) as TruckDocumentKind[];
+
+function DocThumb({ url, label }: { url?: string; label: string }) {
+  const [enlarged, setEnlarged] = useState(false);
+
+  if (!url) {
+    return (
+      <div className="flex h-20 flex-col items-center justify-center rounded-lg bg-card p-2 text-center">
+        <AlertCircle className="mb-1 h-3.5 w-3.5 text-muted-foreground" />
+        <p className="text-[9px] text-muted-foreground">{label}</p>
+        <p className="text-[9px] text-destructive">Not uploaded</p>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setEnlarged(true)}
+        className="group relative h-20 w-full overflow-hidden rounded-lg bg-card"
+      >
+        <img src={url} alt={label} className="h-full w-full object-cover" />
+        <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
+          <Eye className="h-4 w-4 text-white" />
+        </div>
+      </button>
+      {enlarged && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+          onClick={() => setEnlarged(false)}
+        >
+          <img src={url} alt={label} className="max-h-full max-w-full rounded-xl object-contain" />
+        </div>
+      )}
+    </>
+  );
+}
 
 function AdminDashboard() {
   const user = localUser();
@@ -40,6 +86,11 @@ function AdminDashboard() {
   const [payments, setPayments] = useState<PaymentRequestRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [expandedTruckId, setExpandedTruckId] = useState<string | null>(null);
+  const [truckDocs, setTruckDocs] = useState<
+    Record<string, Partial<Record<TruckDocumentKind, string>>>
+  >({});
+  const [docsLoadingId, setDocsLoadingId] = useState<string | null>(null);
 
   useEffect(() => {
     async function checkRole() {
@@ -112,6 +163,36 @@ function AdminDashboard() {
     }
   }
 
+  async function toggleTruckDocs(truck: TruckRecord) {
+    if (!truck.id) return;
+    const next = expandedTruckId === truck.id ? null : truck.id;
+    setExpandedTruckId(next);
+    if (next && !truckDocs[truck.id]) {
+      setDocsLoadingId(truck.id);
+      try {
+        const docs = await fetchTruckDocuments(truck.phone);
+        setTruckDocs((prev) => ({ ...prev, [truck.id as string]: docs }));
+      } finally {
+        setDocsLoadingId(null);
+      }
+    }
+  }
+
+  async function reviewTruck(truck: TruckRecord, approve: boolean) {
+    if (!truck.id) return;
+    setBusyId(truck.id);
+    try {
+      await reviewTruckRegistration(truck.id, approve);
+      toast.success(approve ? "Registration approved" : "Registration rejected");
+      await loadAll();
+    } catch (error) {
+      console.error(error);
+      toast.error("Could not update registration", { description: "Please try again." });
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   async function verifyPayment(request: PaymentRequestRecord) {
     if (!request.id) return;
     setBusyId(request.id);
@@ -159,11 +240,13 @@ function AdminDashboard() {
   }
 
   const pendingPayments = payments.filter((p) => p.status === "pending");
+  const pendingTrucks = trucks.filter((t) => t.status === PENDING_TRUCK_STATUS);
+  const otherTrucks = trucks.filter((t) => t.status !== PENDING_TRUCK_STATUS);
 
   return (
     <AppShell title="Admin">
       <div className="space-y-4">
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           <StatCard
             label="Broadcasting"
             value={loads.filter((l) => l.status === "Broadcasting").length}
@@ -173,6 +256,7 @@ function AdminDashboard() {
             value={loads.filter((l) => ACTIVE_LOAD_STATUSES.has(l.status)).length}
           />
           <StatCard label="Pending pay" value={pendingPayments.length} />
+          <StatCard label="Pending regs" value={pendingTrucks.length} />
         </div>
 
         <Panel>
@@ -278,10 +362,110 @@ function AdminDashboard() {
 
         <Panel>
           <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Drivers/trucks ({trucks.length})
+            Pending driver registrations ({pendingTrucks.length})
           </p>
           <div className="space-y-2">
-            {trucks.map((truck) => (
+            {pendingTrucks.map((truck) => {
+              const docs = truck.id ? truckDocs[truck.id] : undefined;
+              const expanded = truck.id === expandedTruckId;
+              return (
+                <div
+                  key={truck.id}
+                  className="rounded-xl border border-border bg-secondary p-3 text-xs"
+                >
+                  <div className="flex items-center gap-2">
+                    <TruckIcon className="h-4 w-4 shrink-0 text-primary" />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-bold text-card-foreground">
+                        {truck.name} · {truck.plate}
+                      </p>
+                      <p className="text-muted-foreground">
+                        {truck.phone} · {truck.category}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    <div className="rounded-lg bg-card px-2 py-1.5">
+                      <p className="text-[9px] text-muted-foreground">BA Permit</p>
+                      <p className="truncate font-medium text-card-foreground">
+                        {truck.permit || "—"}
+                      </p>
+                    </div>
+                    <div className="rounded-lg bg-card px-2 py-1.5">
+                      <p className="text-[9px] text-muted-foreground">Licence code</p>
+                      <p className="truncate font-medium text-card-foreground">
+                        {truck.licence || "—"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => void toggleTruckDocs(truck)}
+                    className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg bg-primary/5 py-1.5 text-[11px] font-semibold text-primary"
+                  >
+                    <FileText className="h-3 w-3" />
+                    {expanded ? "Hide documents" : "View documents"}
+                  </button>
+
+                  {expanded && (
+                    <div className="mt-2 grid grid-cols-3 gap-2">
+                      {docsLoadingId === truck.id && !docs ? (
+                        <p className="col-span-3 py-3 text-center text-[11px] text-muted-foreground">
+                          Loading documents…
+                        </p>
+                      ) : (
+                        DOC_KINDS.map((kind) => (
+                          <DocThumb
+                            key={kind}
+                            url={docs?.[kind]}
+                            label={TRUCK_DOCUMENT_LABELS[kind]}
+                          />
+                        ))
+                      )}
+                    </div>
+                  )}
+
+                  <div className="mt-2 flex gap-2">
+                    <button
+                      type="button"
+                      disabled={busyId === truck.id}
+                      onClick={() => void reviewTruck(truck, true)}
+                      className="inline-flex flex-1 items-center justify-center gap-1 rounded-lg bg-success px-2.5 py-1.5 text-[11px] font-bold text-white disabled:opacity-60"
+                    >
+                      {busyId === truck.id ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <Check className="h-3 w-3" />
+                      )}
+                      Approve
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busyId === truck.id}
+                      onClick={() => void reviewTruck(truck, false)}
+                      className="inline-flex flex-1 items-center justify-center gap-1 rounded-lg bg-destructive px-2.5 py-1.5 text-[11px] font-bold text-white disabled:opacity-60"
+                    >
+                      <X className="h-3 w-3" /> Reject
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+            {pendingTrucks.length === 0 && !loading && (
+              <p className="py-4 text-center text-xs text-muted-foreground">
+                No pending registrations.
+              </p>
+            )}
+          </div>
+        </Panel>
+
+        <Panel>
+          <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Drivers/trucks ({otherTrucks.length})
+          </p>
+          <div className="space-y-2">
+            {otherTrucks.map((truck) => (
               <div
                 key={truck.id}
                 className="flex items-center justify-between rounded-xl border border-border bg-secondary p-3 text-xs"
@@ -302,7 +486,7 @@ function AdminDashboard() {
                 </span>
               </div>
             ))}
-            {trucks.length === 0 && !loading && (
+            {otherTrucks.length === 0 && !loading && (
               <p className="py-4 text-center text-xs text-muted-foreground">No trucks yet.</p>
             )}
           </div>

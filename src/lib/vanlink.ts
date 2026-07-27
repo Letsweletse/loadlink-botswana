@@ -49,3 +49,14 @@ export function estimateFare(size: TruckSize, distanceKm: number) {
   const extra = Math.max(0, distanceKm - BASE_RADIUS_KM);
   return Math.round(tier.baseFare + extra * tier.perKm);
 }
+
+const LOAD_STATUS_BADGE_STYLES: Record<string, string> = {
+  Broadcasting: "bg-blue-100 text-blue-700",
+  Accepted: "bg-orange-100 text-orange-700",
+  Collected: "bg-purple-100 text-purple-700",
+  Delivered: "bg-green-100 text-green-700",
+};
+
+export function loadStatusBadgeClass(status: string) {
+  return LOAD_STATUS_BADGE_STYLES[status] ?? "bg-secondary text-muted-foreground";
+}

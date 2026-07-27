@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { AppShell, Panel } from "@/components/AppShell";
+import { loadStatusBadgeClass } from "@/lib/vanlink";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -280,7 +281,9 @@ function AdminDashboard() {
               >
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-card-foreground">{load.id}</span>
-                  <span className="rounded-full bg-card px-2 py-0.5 font-semibold text-muted-foreground">
+                  <span
+                    className={`rounded-full px-2 py-0.5 font-semibold ${loadStatusBadgeClass(load.status)}`}
+                  >
                     {load.status}
                   </span>
                 </div>

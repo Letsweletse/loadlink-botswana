@@ -3,11 +3,12 @@ import { AppShell, Panel } from "@/components/AppShell";
 import { MapPin, Phone, MessageCircle, Navigation, ExternalLink, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { fetchLoad, type LoadRecord } from "@/lib/supabase";
+import { loadStatusBadgeClass } from "@/lib/vanlink";
 import { TrackingMap } from "@/components/TrackingMap";
 
 export const Route = createFileRoute("/track")({ component: Track });
 
-const ACTIVE_STATUSES = new Set(["Broadcasting", "Accepted", "In transit"]);
+const ACTIVE_STATUSES = new Set(["Broadcasting", "Accepted", "Collected", "In transit"]);
 const POLL_INTERVAL_MS = 4000;
 
 function mapsSearchUrl(value: string) {
@@ -155,7 +156,9 @@ function Track() {
             driverLat={load?.driver_lat}
             driverLng={load?.driver_lng}
           />
-          <div className="absolute left-3 top-3 rounded-full bg-ink px-3 py-1 text-[10px] font-semibold text-white shadow-[var(--shadow-elegant)]">
+          <div
+            className={`absolute left-3 top-3 rounded-full px-3 py-1 text-[10px] font-semibold shadow-[var(--shadow-elegant)] ${load ? loadStatusBadgeClass(load.status) : "bg-ink text-white"}`}
+          >
             {load?.status || "Waiting"}
           </div>
           <LiveTrackingBadge />

@@ -12,6 +12,8 @@ import {
   MapPin,
   Navigation,
   PackageSearch,
+  PackageCheck,
+  CheckCircle2,
   Check,
   Loader2,
   RefreshCw,
@@ -31,6 +33,8 @@ import {
   isSupabaseConfigured,
   LoadAlreadyTakenError,
   localUser,
+  markLoadCollected,
+  markLoadDelivered,
   supabase,
   updateTruck,
   TRUCK_DOCUMENT_LABELS as DOC_LABELS,
@@ -87,6 +91,7 @@ function DriverHub() {
   const [loadingOpenLoads, setLoadingOpenLoads] = useState(true);
   const [acceptingId, setAcceptingId] = useState<string | null>(null);
   const [activeLoad, setActiveLoad] = useState<LoadRecord | null>(null);
+  const [updatingLoadStatus, setUpdatingLoadStatus] = useState(false);
   const tier = TRUCK_TIERS[size];
 
   const loadActiveLoad = useCallback(async () => {
@@ -112,8 +117,38 @@ function DriverHub() {
 
   useDriverLocationTracking(
     activeLoad?.id,
-    Boolean(activeLoad && ["Accepted", "In transit"].includes(activeLoad.status)),
+    Boolean(activeLoad && ["Accepted", "Collected", "In transit"].includes(activeLoad.status)),
   );
+
+  async function markCollected() {
+    if (!activeLoad?.id) return;
+    setUpdatingLoadStatus(true);
+    try {
+      const updated = await markLoadCollected(activeLoad.id);
+      setActiveLoad(updated);
+      toast.success("Marked as collected");
+    } catch (error) {
+      console.error(error);
+      toast.error("Could not update load", { description: "Please try again." });
+    } finally {
+      setUpdatingLoadStatus(false);
+    }
+  }
+
+  async function markDelivered() {
+    if (!activeLoad?.id) return;
+    setUpdatingLoadStatus(true);
+    try {
+      await markLoadDelivered(activeLoad.id);
+      setActiveLoad(null);
+      toast.success("Marked as delivered", { description: "Great work!" });
+    } catch (error) {
+      console.error(error);
+      toast.error("Could not update load", { description: "Please try again." });
+    } finally {
+      setUpdatingLoadStatus(false);
+    }
+  }
 
   const loadOpenLoads = useCallback(async () => {
     setLoadingOpenLoads(true);
@@ -406,18 +441,50 @@ function DriverHub() {
         </div>
 
         {activeLoad && (
-          <Panel className="flex items-center gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-success/15 text-success">
-              <Radio className="h-4 w-4 animate-pulse" />
+          <Panel className="space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-success/15 text-success">
+                <Radio className="h-4 w-4 animate-pulse" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-card-foreground">
+                  {activeLoad.status} · {activeLoad.id}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {activeLoad.pickup} → {activeLoad.dropoff}
+                </p>
+              </div>
             </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-card-foreground">
-                Sharing live location for {activeLoad.id}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {activeLoad.pickup} → {activeLoad.dropoff}
-              </p>
-            </div>
+            {activeLoad.status === "Accepted" && (
+              <button
+                type="button"
+                onClick={() => void markCollected()}
+                disabled={updatingLoadStatus}
+                className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-primary py-2.5 text-sm font-bold text-primary-foreground disabled:opacity-60"
+              >
+                {updatingLoadStatus ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <PackageCheck className="h-4 w-4" />
+                )}
+                Mark as Collected
+              </button>
+            )}
+            {activeLoad.status === "Collected" && (
+              <button
+                type="button"
+                onClick={() => void markDelivered()}
+                disabled={updatingLoadStatus}
+                className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-success py-2.5 text-sm font-bold text-white disabled:opacity-60"
+              >
+                {updatingLoadStatus ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="h-4 w-4" />
+                )}
+                Mark as Delivered
+              </button>
+            )}
           </Panel>
         )}
 

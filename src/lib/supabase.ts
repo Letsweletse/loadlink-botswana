@@ -48,7 +48,8 @@ function readJson<T>(key: string, fallback: T): T {
   return parsed;
 }
 
-export type LoadStatus = "Broadcasting" | "Accepted" | "In transit" | "Completed" | string;
+export type LoadStatus =
+  "Broadcasting" | "Accepted" | "Collected" | "Delivered" | "In transit" | "Completed" | string;
 
 export type LoadRecord = {
   id: string;
@@ -68,6 +69,8 @@ export type LoadRecord = {
   location_updated_at?: string | null;
   created_at?: string;
   accepted_at?: string | null;
+  collected_at?: string | null;
+  delivered_at?: string | null;
   weight_tonnes?: number | null;
   cargo_description?: string | null;
 };
@@ -198,7 +201,7 @@ export async function fetchActiveLoadForDriver(phone: string) {
         .from("loads")
         .select("*")
         .eq("driver_phone", normalizePhone(phone))
-        .in("status", ["Accepted", "In transit"])
+        .in("status", ["Accepted", "Collected", "In transit"])
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle(),
@@ -420,6 +423,30 @@ export async function completeLoad(load: LoadRecord) {
   // The 10% platform fee is already deducted as a 'load_fee' transaction at
   // accept time (see acceptLoad), so completing a load is just a status flip.
   return updateLoad(load.id, { status: "Completed" });
+}
+
+// mark_load_collected/mark_load_delivered are SECURITY DEFINER functions
+// that row-lock the load, verify it's in the expected prior status
+// (Accepted -> Collected -> Delivered), and check the caller is the load's
+// assigned driver before flipping status + stamping collected_at/delivered_at.
+export async function markLoadCollected(loadId: string) {
+  const db = requireClient();
+  const { data, error } = await withTimeout(
+    db.rpc("mark_load_collected", { p_load_id: loadId }),
+    "Mark collected",
+  );
+  if (error) throw error;
+  return data as LoadRecord;
+}
+
+export async function markLoadDelivered(loadId: string) {
+  const db = requireClient();
+  const { data, error } = await withTimeout(
+    db.rpc("mark_load_delivered", { p_load_id: loadId }),
+    "Mark delivered",
+  );
+  if (error) throw error;
+  return data as LoadRecord;
 }
 
 export async function createTruck(truck: TruckRecord) {

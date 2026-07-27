@@ -49,6 +49,8 @@ function ClientBooking() {
   const [pickup, setPickup] = useState("");
   const [drop, setDrop] = useState("");
   const [load, setLoad] = useState("");
+  const [weightTonnes, setWeightTonnes] = useState("");
+  const [cargoDescription, setCargoDescription] = useState("");
   const [distance, setDistance] = useState(DEFAULT_DISTANCE_KM);
   const [distanceStatus, setDistanceStatus] = useState<"idle" | "calculating" | "calculated" | "error">("idle");
   const [distanceError, setDistanceError] = useState<string | null>(null);
@@ -134,6 +136,11 @@ function ClientBooking() {
   }
 
   const broadcast = async () => {
+    const weight = Number(weightTonnes);
+    if (!weightTonnes || Number.isNaN(weight) || weight <= 0) {
+      toast.error("Load weight required", { description: "Enter the weight in tonnes." });
+      return;
+    }
     setSaving(true);
     try {
       const saved = await createLoad({
@@ -144,6 +151,8 @@ function ClientBooking() {
         dropoff: drop,
         category: size,
         load,
+        weight_tonnes: weight,
+        cargo_description: cargoDescription.trim() || null,
         km: distance,
         offer: fare,
         status: "Broadcasting",
@@ -182,6 +191,28 @@ function ClientBooking() {
           <div className="h-px bg-border" />
           <Row icon={<Truck className="h-4 w-4 text-primary" />} label="Goods description">
             <input value={load} onChange={(e) => setLoad(e.target.value)} placeholder="e.g. Furniture, stock, building material" className="w-full bg-transparent text-sm outline-none" />
+          </Row>
+          <div className="h-px bg-border" />
+          <Row icon={<Truck className="h-4 w-4 text-primary" />} label="Load weight (tonnes)">
+            <input
+              type="number"
+              min="0"
+              step="0.1"
+              value={weightTonnes}
+              onChange={(e) => setWeightTonnes(e.target.value)}
+              placeholder="e.g. 2.5"
+              className="w-full bg-transparent text-sm outline-none"
+            />
+          </Row>
+          <div className="h-px bg-border" />
+          <Row icon={<Truck className="h-4 w-4 text-primary" />} label="Cargo description (optional)">
+            <textarea
+              value={cargoDescription}
+              onChange={(e) => setCargoDescription(e.target.value)}
+              placeholder="Any extra detail for the driver — packaging, fragility, access notes"
+              rows={2}
+              className="w-full resize-none bg-transparent text-sm outline-none"
+            />
           </Row>
         </Panel>
 
@@ -269,7 +300,7 @@ function ClientBooking() {
           </div>
         </div>
 
-        <PrimaryButton onClick={broadcast} disabled={!pickup || !drop || saving}>{saving ? "Broadcasting..." : "Broadcast booking to drivers"}</PrimaryButton>
+        <PrimaryButton onClick={broadcast} disabled={!pickup || !drop || !weightTonnes || saving}>{saving ? "Broadcasting..." : "Broadcast booking to drivers"}</PrimaryButton>
       </div>
     </AppShell>
   );

@@ -75,6 +75,8 @@ function DriverHub() {
   const [licenceExpiry, setLicenceExpiry] = useState("");
   const [baPermit, setBaPermit] = useState("");
   const [driverCode, setDriverCode] = useState("");
+  const [area, setArea] = useState("");
+  const [capacityTonnes, setCapacityTonnes] = useState("");
   const [active, setActive] = useState(false);
   const [truck, setTruck] = useState<TruckRecord | null>(null);
   const [wallet, setWallet] = useState<WalletTransaction[]>([]);
@@ -116,7 +118,11 @@ function DriverHub() {
   const loadOpenLoads = useCallback(async () => {
     setLoadingOpenLoads(true);
     try {
-      const loads = await fetchOpenLoads(truck?.category);
+      const loads = await fetchOpenLoads({
+        category: truck?.category,
+        capacity_tonnes: truck?.capacity_tonnes,
+        area: truck?.area,
+      });
       setOpenLoads(loads.filter((load) => load.status === "Broadcasting"));
     } catch (error) {
       console.error(error);
@@ -126,7 +132,7 @@ function DriverHub() {
     } finally {
       setLoadingOpenLoads(false);
     }
-  }, [truck?.category]);
+  }, [truck?.category, truck?.capacity_tonnes, truck?.area]);
 
   useEffect(() => {
     void loadOpenLoads();
@@ -183,6 +189,8 @@ function DriverHub() {
         setLicenceExpiry(latest.disc || "");
         setBaPermit(latest.permit || "");
         setDriverCode(latest.licence || "");
+        setArea(latest.area || "");
+        setCapacityTonnes(latest.capacity_tonnes != null ? String(latest.capacity_tonnes) : "");
         setActive(Boolean(latest.online));
       }
     } catch (error) {
@@ -327,6 +335,19 @@ function DriverHub() {
       });
       return;
     }
+    if (!area.trim()) {
+      toast.error("Operating area required", {
+        description: "Enter the area you operate in before saving.",
+      });
+      return;
+    }
+    const capacity = Number(capacityTonnes);
+    if (!capacityTonnes || Number.isNaN(capacity) || capacity <= 0) {
+      toast.error("Truck capacity required", {
+        description: "Enter how many tonnes your truck can carry.",
+      });
+      return;
+    }
     setSaving(true);
     try {
       const payload = {
@@ -335,7 +356,8 @@ function DriverHub() {
         owner_phone: user.phone,
         category: size,
         plate,
-        area: "Botswana",
+        area: area.trim(),
+        capacity_tonnes: capacity,
         licence: driverCode,
         disc: licenceExpiry,
         permit: baPermit,
@@ -448,8 +470,16 @@ function DriverHub() {
                   {load.load && (
                     <p className="mt-1.5 truncate text-[11px] text-muted-foreground">{load.load}</p>
                   )}
+                  {load.cargo_description && (
+                    <p className="mt-1 truncate text-[11px] text-muted-foreground">
+                      {load.cargo_description}
+                    </p>
+                  )}
                   <div className="mt-2 flex items-center justify-between">
-                    <span className="text-[11px] text-muted-foreground">{load.km} km</span>
+                    <span className="text-[11px] text-muted-foreground">
+                      {load.km} km
+                      {load.weight_tonnes != null ? ` · ${load.weight_tonnes}t` : ""}
+                    </span>
                     <button
                       type="button"
                       onClick={() => void accept(load)}
@@ -534,6 +564,19 @@ function DriverHub() {
             onChange={setDriverCode}
             placeholder={tier.licence}
           />
+          <Input
+            label="Operating area"
+            value={area}
+            onChange={setArea}
+            placeholder="e.g. Gaborone"
+          />
+          <Input
+            label="Truck capacity (tonnes)"
+            value={capacityTonnes}
+            onChange={setCapacityTonnes}
+            placeholder="e.g. 5"
+            type="number"
+          />
 
           <div className="flex gap-2 rounded-xl bg-secondary p-3 text-xs text-muted-foreground">
             <AlertCircle className="h-4 w-4 shrink-0 text-primary" />
@@ -586,7 +629,7 @@ function DriverHub() {
 
         <button
           onClick={saveTruck}
-          disabled={saving || !plate || !driverCode}
+          disabled={saving || !plate || !driverCode || !area || !capacityTonnes}
           className="block w-full rounded-xl py-3 text-center text-sm font-semibold text-primary-foreground shadow-[var(--shadow-elegant)] disabled:opacity-60"
           style={{ background: "var(--gradient-primary)" }}
         >

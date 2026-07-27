@@ -68,6 +68,8 @@ export type LoadRecord = {
   location_updated_at?: string | null;
   created_at?: string;
   accepted_at?: string | null;
+  weight_tonnes?: number | null;
+  cargo_description?: string | null;
 };
 
 export type TruckRecord = {
@@ -77,7 +79,8 @@ export type TruckRecord = {
   phone: string;
   category: TruckSize;
   plate: string;
-  area?: string | null;
+  area: string;
+  capacity_tonnes?: number | null;
   wallet?: number;
   rating?: number;
   online?: boolean;
@@ -137,7 +140,18 @@ export async function fetchLoads() {
   }
 }
 
-export async function fetchOpenLoads(category?: TruckSize) {
+export type OpenLoadsFilter = {
+  category?: TruckSize;
+  capacity_tonnes?: number | null;
+  area?: string | null;
+};
+
+// Matches a driver's truck against loads it can actually carry: same
+// category, within its weight capacity, and picking up from the truck's
+// operating area (case-insensitive contains, e.g. area "Gaborone" matches
+// pickup "Game City, Gaborone").
+export async function fetchOpenLoads(filter: OpenLoadsFilter = {}) {
+  const { category, capacity_tonnes: capacityTonnes, area } = filter;
   const cachedTrip = readJson<LoadRecord | null>("vanlink_trip", null);
   try {
     const db = requireClient();
@@ -147,6 +161,8 @@ export async function fetchOpenLoads(category?: TruckSize) {
       .in("status", ["Broadcasting", "Accepted", "In transit"])
       .order("created_at", { ascending: false });
     if (category) query = query.eq("category", category);
+    if (capacityTonnes != null) query = query.lte("weight_tonnes", capacityTonnes);
+    if (area) query = query.ilike("pickup", `%${area}%`);
     const { data, error } = await withTimeout(query, "Open loads");
     if (error) throw error;
     return (data || []) as LoadRecord[];

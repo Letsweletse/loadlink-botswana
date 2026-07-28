@@ -47,6 +47,52 @@ function statusVariant(status: string): "default" | "secondary" | "destructive" 
   return "outline";
 }
 
+type SupabaseErrorDetails = {
+  message: string;
+  code?: string;
+  hint?: string;
+  details?: string;
+};
+
+function extractSupabaseError(error: unknown): SupabaseErrorDetails {
+  if (error && typeof error === "object") {
+    const e = error as { message?: unknown; code?: unknown; hint?: unknown; details?: unknown };
+    return {
+      message: typeof e.message === "string" && e.message ? e.message : String(error),
+      code: typeof e.code === "string" ? e.code : undefined,
+      hint: typeof e.hint === "string" ? e.hint : undefined,
+      details: typeof e.details === "string" ? e.details : undefined,
+    };
+  }
+  return { message: error instanceof Error ? error.message : String(error) };
+}
+
+function SupabaseErrorPanel({ error }: { error: SupabaseErrorDetails }) {
+  return (
+    <div className="mb-3 space-y-1 rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">
+      <p className="font-bold">admin_verify_payment failed</p>
+      <p>
+        <span className="font-semibold">message:</span> {error.message}
+      </p>
+      {error.code && (
+        <p>
+          <span className="font-semibold">code:</span> {error.code}
+        </p>
+      )}
+      {error.hint && (
+        <p>
+          <span className="font-semibold">hint:</span> {error.hint}
+        </p>
+      )}
+      {error.details && (
+        <p>
+          <span className="font-semibold">details:</span> {error.details}
+        </p>
+      )}
+    </div>
+  );
+}
+
 export function AdminPanel() {
   const [session, setSession] = useState<Session | null>(null);
   const [checkingSession, setCheckingSession] = useState(true);
@@ -261,6 +307,7 @@ function PaymentsTab() {
   const [rows, setRows] = useState<PaymentRequestRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [actingId, setActingId] = useState<string | null>(null);
+  const [verifyError, setVerifyError] = useState<SupabaseErrorDetails | null>(null);
 
   async function load() {
     if (!supabase) return;
@@ -284,13 +331,15 @@ function PaymentsTab() {
   async function approve(id: string) {
     if (!supabase) return;
     setActingId(id);
+    setVerifyError(null);
     try {
       const { error } = await supabase.rpc("admin_verify_payment", { p_request_id: id });
       if (error) throw error;
       toast.success("Payment approved");
       await load();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Action failed");
+      setVerifyError(extractSupabaseError(error));
+      toast.error("Could not approve payment");
     } finally {
       setActingId(null);
     }
@@ -315,57 +364,68 @@ function PaymentsTab() {
   }
 
   if (loading) return <TabLoading />;
-  if (!rows.length) return <TabEmpty label="No payment requests yet" />;
+
+  if (!rows.length) {
+    return (
+      <>
+        {verifyError && <SupabaseErrorPanel error={verifyError} />}
+        <TabEmpty label="No payment requests yet" />
+      </>
+    );
+  }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-card shadow-[var(--shadow-card)]">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Phone</TableHead>
-            <TableHead>Amount</TableHead>
-            <TableHead>Provider</TableHead>
-            <TableHead>Pay to</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead className="text-right">Action</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map((row) => (
-            <TableRow key={row.id}>
-              <TableCell>{row.phone}</TableCell>
-              <TableCell>P{Number(row.amount).toFixed(2)}</TableCell>
-              <TableCell>{row.provider}</TableCell>
-              <TableCell>{row.pay_to_number}</TableCell>
-              <TableCell>
-                <Badge variant={statusVariant(row.status)}>{row.status}</Badge>
-              </TableCell>
-              <TableCell className="text-right">
-                {row.status === "pending" && row.id ? (
-                  <div className="flex justify-end gap-2">
-                    <Button
-                      size="sm"
-                      disabled={actingId === row.id}
-                      onClick={() => approve(row.id as string)}
-                    >
-                      <CheckCircle2 className="h-4 w-4" /> Approve
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      disabled={actingId === row.id}
-                      onClick={() => reject(row.id as string)}
-                    >
-                      <XCircle className="h-4 w-4" /> Reject
-                    </Button>
-                  </div>
-                ) : null}
-              </TableCell>
+    <>
+      {verifyError && <SupabaseErrorPanel error={verifyError} />}
+      <div className="overflow-hidden rounded-xl border border-border bg-card shadow-[var(--shadow-card)]">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Phone</TableHead>
+              <TableHead>Amount</TableHead>
+              <TableHead>Provider</TableHead>
+              <TableHead>Pay to</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="text-right">Action</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+          </TableHeader>
+          <TableBody>
+            {rows.map((row) => (
+              <TableRow key={row.id}>
+                <TableCell>{row.phone}</TableCell>
+                <TableCell>P{Number(row.amount).toFixed(2)}</TableCell>
+                <TableCell>{row.provider}</TableCell>
+                <TableCell>{row.pay_to_number}</TableCell>
+                <TableCell>
+                  <Badge variant={statusVariant(row.status)}>{row.status}</Badge>
+                </TableCell>
+                <TableCell className="text-right">
+                  {row.status === "pending" && row.id ? (
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        size="sm"
+                        disabled={actingId === row.id}
+                        onClick={() => approve(row.id as string)}
+                      >
+                        <CheckCircle2 className="h-4 w-4" /> Approve
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        disabled={actingId === row.id}
+                        onClick={() => reject(row.id as string)}
+                      >
+                        <XCircle className="h-4 w-4" /> Reject
+                      </Button>
+                    </div>
+                  ) : null}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </>
   );
 }
 

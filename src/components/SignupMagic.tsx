@@ -27,32 +27,23 @@ export function SignupMagic({ role }: { role: SignupRole }) {
   const [busy, setBusy]   = useState(false);
   const [ready, setReady] = useState(false);
 
-  // Already signed in? Go straight to dashboard
   useEffect(() => {
     if (!supabase) { setReady(true); return; }
-
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session?.user) {
-        void navigate({ to: dashboardPath });
-      } else {
-        setReady(true);
-      }
+      if (data.session?.user) void navigate({ to: dashboardPath });
+      else setReady(true);
     });
-
     const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event !== "SIGNED_IN" || !session?.user) return;
       const u = session.user;
       const name  = u.user_metadata?.full_name || u.user_metadata?.name || "";
       const email = u.email || "";
-      const savedPhone = safeJsonParse<{ phone?: string } | null>(
-        safeStorageGet(PROFILE_KEY), null
-      )?.phone || "";
+      const savedPhone = safeJsonParse<{ phone?: string } | null>(safeStorageGet(PROFILE_KEY), null)?.phone || "";
       safeStorageSet(PROFILE_KEY, JSON.stringify({ name, email, phone: savedPhone, role: profileRole }));
       await upsertProfile({ name, phone: savedPhone, email, role: profileRole }).catch(() => null);
       toast.success(`Welcome to VanLink${name ? ", " + name.split(" ")[0] : ""}!`);
       void navigate({ to: dashboardPath });
     });
-
     return () => listener.subscription.unsubscribe();
   }, [dashboardPath, navigate, profileRole]);
 
@@ -78,9 +69,8 @@ export function SignupMagic({ role }: { role: SignupRole }) {
       phone: clean,
       options: { shouldCreateUser: true, data: { role: profileRole } },
     });
-    if (error) {
-      toast.error(error.message);
-    } else {
+    if (error) { toast.error(error.message); }
+    else {
       safeStorageSet(PROFILE_KEY, JSON.stringify({ phone: clean, role: profileRole }));
       setStep("otp");
       toast.success("Code sent to " + clean);
@@ -94,7 +84,6 @@ export function SignupMagic({ role }: { role: SignupRole }) {
     setBusy(true);
     const { error } = await supabase.auth.verifyOtp({ phone: clean, token: otp, type: "sms" });
     if (error) { toast.error("Wrong code — try again"); setBusy(false); }
-    // success → onAuthStateChange handles redirect
   }
 
   if (!ready) {
@@ -111,17 +100,11 @@ export function SignupMagic({ role }: { role: SignupRole }) {
     <AppShell title="Sign in">
       <div className="flex min-h-[85vh] flex-col justify-center gap-4 pb-8 pt-4">
 
-        {/* Role picker */}
         <div className="flex rounded-2xl bg-card p-1 shadow-[var(--shadow-card)]">
           {(["client", "driver"] as const).map((r) => (
-            <Link
-              key={r}
-              to="/signup"
-              search={{ role: r }}
+            <Link key={r} to="/signup" search={{ role: r }}
               className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold transition-all ${
-                role === r
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-muted-foreground"
+                role === r ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground"
               }`}
             >
               {r === "driver" ? <Truck className="h-4 w-4" /> : <User className="h-4 w-4" />}
@@ -130,7 +113,6 @@ export function SignupMagic({ role }: { role: SignupRole }) {
           ))}
         </div>
 
-        {/* Main card */}
         <div className="rounded-3xl bg-card p-6 shadow-[var(--shadow-card)] space-y-5">
           <div>
             <h1 className="text-2xl font-black text-card-foreground">Sign in</h1>
@@ -139,10 +121,7 @@ export function SignupMagic({ role }: { role: SignupRole }) {
             </p>
           </div>
 
-          {/* Google */}
-          <button
-            onClick={signInGoogle}
-            disabled={busy || !isSupabaseConfigured}
+          <button onClick={signInGoogle} disabled={busy || !isSupabaseConfigured}
             className="flex w-full items-center justify-center gap-3 rounded-2xl border border-input bg-background py-4 text-sm font-bold text-card-foreground transition hover:bg-secondary disabled:opacity-50"
           >
             <svg className="h-5 w-5 shrink-0" viewBox="0 0 24 24">
@@ -166,18 +145,13 @@ export function SignupMagic({ role }: { role: SignupRole }) {
                 <div className="flex items-center rounded-2xl border border-input bg-secondary px-4 text-sm font-bold text-card-foreground whitespace-nowrap">
                   🇧🇼 +267
                 </div>
-                <input
-                  type="tel"
-                  inputMode="numeric"
-                  value={phone}
+                <input type="tel" inputMode="numeric" value={phone}
                   onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 8))}
                   placeholder="75 123 456"
                   className="input-mobile flex-1 rounded-2xl border border-input bg-secondary px-4 py-3 text-base"
                 />
               </div>
-              <button
-                onClick={sendOtp}
-                disabled={busy || phone.length < 7}
+              <button onClick={sendOtp} disabled={busy || phone.length < 7}
                 className="w-full rounded-2xl bg-primary py-4 text-sm font-bold text-primary-foreground disabled:opacity-50 transition active:scale-[0.98]"
               >
                 {busy ? "Sending…" : "Send code"}
@@ -188,24 +162,17 @@ export function SignupMagic({ role }: { role: SignupRole }) {
               <p className="text-center text-sm text-muted-foreground">
                 Code sent to <strong>+267 {phone}</strong>
               </p>
-              <input
-                type="tel"
-                inputMode="numeric"
-                value={otp}
+              <input type="tel" inputMode="numeric" value={otp}
                 onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                placeholder="------"
-                autoFocus
+                placeholder="------" autoFocus
                 className="input-mobile w-full rounded-2xl border-2 border-primary bg-secondary px-4 py-4 text-center text-2xl font-black tracking-[0.5em]"
               />
-              <button
-                onClick={verifyOtp}
-                disabled={busy || otp.length < 6}
+              <button onClick={verifyOtp} disabled={busy || otp.length < 6}
                 className="w-full rounded-2xl bg-primary py-4 text-sm font-bold text-primary-foreground disabled:opacity-50 transition active:scale-[0.98]"
               >
                 {busy ? "Checking…" : "Verify and sign in"}
               </button>
-              <button
-                onClick={() => { setStep("login"); setOtp(""); setBusy(false); }}
+              <button onClick={() => { setStep("login"); setOtp(""); setBusy(false); }}
                 className="w-full py-2 text-sm text-muted-foreground"
               >
                 ← Different number

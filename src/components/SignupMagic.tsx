@@ -22,14 +22,15 @@ export function SignupMagic({ role }: { role: SignupRole }) {
   const dashboardPath = role === "driver" ? "/driver" : "/client";
 
   const [phone, setPhone] = useState("");
-  const [otp, setOtp]   = useState("");
-  const [step, setStep] = useState<"login" | "otp">("login");
-  const [busy, setBusy] = useState(false);
-  const [ready, setReady] = useState(false); // show UI only after session check
+  const [otp, setOtp]     = useState("");
+  const [step, setStep]   = useState<"login" | "otp">("login");
+  const [busy, setBusy]   = useState(false);
+  const [ready, setReady] = useState(false);
 
-  // ── 1. Already signed in? Skip straight to dashboard ──────────────────
+  // Already signed in? Go straight to dashboard
   useEffect(() => {
     if (!supabase) { setReady(true); return; }
+
     supabase.auth.getSession().then(({ data }) => {
       if (data.session?.user) {
         void navigate({ to: dashboardPath });
@@ -38,25 +39,23 @@ export function SignupMagic({ role }: { role: SignupRole }) {
       }
     });
 
-    // Listen for Google redirect / OTP success
     const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event !== "SIGNED_IN" || !session?.user) return;
-      const user = session.user;
-      const name  = user.user_metadata?.full_name || user.user_metadata?.name || "";
-      const email = user.email || "";
+      const u = session.user;
+      const name  = u.user_metadata?.full_name || u.user_metadata?.name || "";
+      const email = u.email || "";
       const savedPhone = safeJsonParse<{ phone?: string } | null>(
         safeStorageGet(PROFILE_KEY), null
       )?.phone || "";
       safeStorageSet(PROFILE_KEY, JSON.stringify({ name, email, phone: savedPhone, role: profileRole }));
       await upsertProfile({ name, phone: savedPhone, email, role: profileRole }).catch(() => null);
-      toast.success("Welcome to VanLink!");
+      toast.success(`Welcome to VanLink${name ? ", " + name.split(" ")[0] : ""}!`);
       void navigate({ to: dashboardPath });
     });
 
     return () => listener.subscription.unsubscribe();
   }, [dashboardPath, navigate, profileRole]);
 
-  // ── 2. Google one-tap ─────────────────────────────────────────────────
   async function signInGoogle() {
     if (!supabase) return;
     setBusy(true);
@@ -70,7 +69,6 @@ export function SignupMagic({ role }: { role: SignupRole }) {
     if (error) { toast.error("Google sign-in failed"); setBusy(false); }
   }
 
-  // ── 3. Phone OTP ──────────────────────────────────────────────────────
   async function sendOtp() {
     const clean = normalizePhone(phone);
     if (clean.length < 10) { toast.error("Enter a valid Botswana number"); return; }
@@ -95,12 +93,10 @@ export function SignupMagic({ role }: { role: SignupRole }) {
     if (!supabase || otp.length < 6) return;
     setBusy(true);
     const { error } = await supabase.auth.verifyOtp({ phone: clean, token: otp, type: "sms" });
-    if (error) toast.error("Wrong code — try again");
-    setBusy(false);
-    // onAuthStateChange handles the redirect on success
+    if (error) { toast.error("Wrong code — try again"); setBusy(false); }
+    // success → onAuthStateChange handles redirect
   }
 
-  // ── Loading splash (session check) ───────────────────────────────────
   if (!ready) {
     return (
       <AppShell title="VanLink">
@@ -111,19 +107,18 @@ export function SignupMagic({ role }: { role: SignupRole }) {
     );
   }
 
-  // ── Main UI ───────────────────────────────────────────────────────────
   return (
     <AppShell title="Sign in">
       <div className="flex min-h-[85vh] flex-col justify-center gap-4 pb-8 pt-4">
 
-        {/* Role tabs */}
+        {/* Role picker */}
         <div className="flex rounded-2xl bg-card p-1 shadow-[var(--shadow-card)]">
           {(["client", "driver"] as const).map((r) => (
             <Link
               key={r}
               to="/signup"
               search={{ role: r }}
-              className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-bold transition-all ${
+              className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold transition-all ${
                 role === r
                   ? "bg-primary text-primary-foreground shadow-sm"
                   : "text-muted-foreground"
@@ -135,11 +130,13 @@ export function SignupMagic({ role }: { role: SignupRole }) {
           ))}
         </div>
 
-        {/* Card */}
+        {/* Main card */}
         <div className="rounded-3xl bg-card p-6 shadow-[var(--shadow-card)] space-y-5">
           <div>
             <h1 className="text-2xl font-black text-card-foreground">Sign in</h1>
-            <p className="mt-1 text-sm text-muted-foreground">One tap and you're in.</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {role === "driver" ? "Get loads. Earn money." : "Book a truck fast."}
+            </p>
           </div>
 
           {/* Google */}
@@ -154,16 +151,15 @@ export function SignupMagic({ role }: { role: SignupRole }) {
               <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
               <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.47 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
             </svg>
-            {busy ? "Redirecting…" : "Continue with Google"}
+            {busy && step === "login" ? "Opening Google…" : "Continue with Google"}
           </button>
 
           <div className="flex items-center gap-3">
             <div className="h-px flex-1 bg-border" />
-            <span className="text-xs text-muted-foreground">or use phone</span>
+            <span className="text-xs text-muted-foreground">or phone number</span>
             <div className="h-px flex-1 bg-border" />
           </div>
 
-          {/* Phone step */}
           {step === "login" ? (
             <div className="space-y-3">
               <div className="flex gap-2">
@@ -182,15 +178,14 @@ export function SignupMagic({ role }: { role: SignupRole }) {
               <button
                 onClick={sendOtp}
                 disabled={busy || phone.length < 7}
-                className="w-full rounded-2xl bg-primary py-4 text-sm font-bold text-primary-foreground disabled:opacity-50 transition"
+                className="w-full rounded-2xl bg-primary py-4 text-sm font-bold text-primary-foreground disabled:opacity-50 transition active:scale-[0.98]"
               >
                 {busy ? "Sending…" : "Send code"}
               </button>
             </div>
           ) : (
-            /* OTP step */
             <div className="space-y-3">
-              <p className="text-sm text-muted-foreground text-center">
+              <p className="text-center text-sm text-muted-foreground">
                 Code sent to <strong>+267 {phone}</strong>
               </p>
               <input
@@ -198,20 +193,19 @@ export function SignupMagic({ role }: { role: SignupRole }) {
                 inputMode="numeric"
                 value={otp}
                 onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                placeholder="_ _ _ _ _ _"
-                maxLength={6}
+                placeholder="------"
                 autoFocus
-                className="input-mobile w-full rounded-2xl border border-input bg-secondary px-4 py-4 text-center text-2xl font-black tracking-[0.5em]"
+                className="input-mobile w-full rounded-2xl border-2 border-primary bg-secondary px-4 py-4 text-center text-2xl font-black tracking-[0.5em]"
               />
               <button
                 onClick={verifyOtp}
                 disabled={busy || otp.length < 6}
-                className="w-full rounded-2xl bg-primary py-4 text-sm font-bold text-primary-foreground disabled:opacity-50 transition"
+                className="w-full rounded-2xl bg-primary py-4 text-sm font-bold text-primary-foreground disabled:opacity-50 transition active:scale-[0.98]"
               >
-                {busy ? "Verifying…" : "Verify and sign in"}
+                {busy ? "Checking…" : "Verify and sign in"}
               </button>
               <button
-                onClick={() => { setStep("login"); setOtp(""); }}
+                onClick={() => { setStep("login"); setOtp(""); setBusy(false); }}
                 className="w-full py-2 text-sm text-muted-foreground"
               >
                 ← Different number

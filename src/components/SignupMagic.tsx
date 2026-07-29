@@ -1,30 +1,13 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Camera, CheckCircle2, Mail, Phone, ShieldCheck, Truck, User } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { Truck, User } from "lucide-react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { AppShell, Panel, PrimaryButton } from "@/components/AppShell";
-import { isSupabaseConfigured, supabase, upsertProfile } from "@/lib/supabase";
-import { safeJsonParse, safeStorageGet, safeStorageRemove, safeStorageSet } from "@/lib/safe-storage";
+import { AppShell } from "@/components/AppShell";
+import { supabase, isSupabaseConfigured, upsertProfile } from "@/lib/supabase";
+import { safeStorageGet, safeStorageSet, safeJsonParse } from "@/lib/safe-storage";
 
 type SignupRole = "client" | "driver";
-type Step = "email" | "sent" | "profile" | "done";
-
-const PENDING_KEY = "vanlink_pending_signup";
 const PROFILE_KEY = "vanlink_profile";
-const USER_KEY = "vanlink_user";
-
-type SavedProfile = {
-  name: string;
-  phone: string;
-  email: string;
-  role: "customer" | "driver";
-  avatar?: string;
-  verifiedAt?: string;
-};
-
-function normalizeEmail(value: string) {
-  return String(value || "").trim().toLowerCase();
-}
 
 function normalizePhone(value: string) {
   const digits = String(value || "").replace(/\D/g, "");
@@ -33,313 +16,210 @@ function normalizePhone(value: string) {
   return String(value || "").trim();
 }
 
-function roleLabel(role: SignupRole) {
-  return role === "driver" ? "Driver" : "Client";
-}
-
 export function SignupMagic({ role }: { role: SignupRole }) {
   const navigate = useNavigate();
-  const [step, setStep] = useState<Step>("email");
-  const [saving, setSaving] = useState(false);
-  const [checking, setChecking] = useState(true);
-  const [email, setEmail] = useState("");
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("+267 ");
-  const [avatar, setAvatar] = useState("");
-
-  const profileRole: SavedProfile["role"] = role === "driver" ? "driver" : "customer";
+  const profileRole = role === "driver" ? "driver" : "customer";
   const dashboardPath = role === "driver" ? "/driver" : "/client";
 
-  const loadSavedProfile = useCallback(() => {
-    return safeJsonParse<SavedProfile | null>(safeStorageGet(PROFILE_KEY), null);
-  }, []);
+  const [phone, setPhone] = useState("");
+  const [otp, setOtp]   = useState("");
+  const [step, setStep] = useState<"login" | "otp">("login");
+  const [busy, setBusy] = useState(false);
+  const [ready, setReady] = useState(false); // show UI only after session check
 
-  const applyProfile = useCallback((profile: SavedProfile) => {
-    setEmail(profile.email || "");
-    setName(profile.name || "");
-    setPhone(profile.phone || "+267 ");
-    setAvatar(profile.avatar || "");
-  }, []);
-
+  // ── 1. Already signed in? Skip straight to dashboard ──────────────────
   useEffect(() => {
-    const pending = safeJsonParse<{ email?: string; role?: SignupRole } | null>(safeStorageGet(PENDING_KEY), null);
-    const saved = loadSavedProfile();
-
-    if (pending && pending.email) setEmail(pending.email);
-    if (saved && saved.email) applyProfile(saved);
-
-    if (!supabase) {
-      setChecking(false);
-      if (saved && saved.email) setStep("done");
-      return;
-    }
-
+    if (!supabase) { setReady(true); return; }
     supabase.auth.getSession().then(({ data }) => {
-      const userEmail = normalizeEmail(data.session?.user?.email || pending?.email || saved?.email || "");
-      if (userEmail) setEmail(userEmail);
-
       if (data.session?.user) {
-        if (saved && saved.email === userEmail && saved.name && saved.phone) {
-          applyProfile(saved);
-          setStep("done");
-        } else {
-          setStep("profile");
-        }
-      } else if (pending && pending.email) {
-        setStep("sent");
+        void navigate({ to: dashboardPath });
+      } else {
+        setReady(true);
       }
-      setChecking(false);
     });
 
-    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event !== "SIGNED_IN") return;
-      const signedEmail = normalizeEmail(session?.user?.email || email);
-      if (signedEmail) setEmail(signedEmail);
-      setStep("profile");
-      toast.success("Email verified", { description: "Now complete your VanLink profile." });
+    // Listen for Google redirect / OTP success
+    const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event !== "SIGNED_IN" || !session?.user) return;
+      const user = session.user;
+      const name  = user.user_metadata?.full_name || user.user_metadata?.name || "";
+      const email = user.email || "";
+      const savedPhone = safeJsonParse<{ phone?: string } | null>(
+        safeStorageGet(PROFILE_KEY), null
+      )?.phone || "";
+      safeStorageSet(PROFILE_KEY, JSON.stringify({ name, email, phone: savedPhone, role: profileRole }));
+      await upsertProfile({ name, phone: savedPhone, email, role: profileRole }).catch(() => null);
+      toast.success("Welcome to VanLink!");
+      void navigate({ to: dashboardPath });
     });
 
     return () => listener.subscription.unsubscribe();
-  }, [applyProfile, email, loadSavedProfile]);
+  }, [dashboardPath, navigate, profileRole]);
 
-  async function sendMagicLink() {
-    const cleanEmail = normalizeEmail(email);
-    if (!cleanEmail) {
-      toast.error("Enter your email first");
-      return;
-    }
-
-    setSaving(true);
-    try {
-      if (!isSupabaseConfigured || !supabase) throw new Error("Email login is not configured yet.");
-      safeStorageSet(PENDING_KEY, JSON.stringify({ email: cleanEmail, role }));
-      const { error } = await supabase.auth.signInWithOtp({
-        email: cleanEmail,
-        options: {
-          shouldCreateUser: true,
-          emailRedirectTo: typeof window !== "undefined" ? `${window.location.origin}/signup?role=${role}` : undefined,
-          data: { role: profileRole },
-        },
-      });
-      if (error) throw error;
-      setEmail(cleanEmail);
-      setStep("sent");
-      toast.success("Login link sent", { description: "Open your email and tap Sign in." });
-    } catch (error) {
-      toast.error("Could not send login link", {
-        description: error instanceof Error ? error.message : "Please try again.",
-      });
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function checkLogin() {
+  // ── 2. Google one-tap ─────────────────────────────────────────────────
+  async function signInGoogle() {
     if (!supabase) return;
-    setSaving(true);
-    try {
-      const { data } = await supabase.auth.getSession();
-      if (data.session?.user) {
-        setEmail(normalizeEmail(data.session.user.email || email));
-        setStep("profile");
-        return;
-      }
-      toast("Not signed in yet", { description: "Tap Sign in from the email, then come back here." });
-    } finally {
-      setSaving(false);
-    }
+    setBusy(true);
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/signup?role=${role}`,
+        queryParams: { prompt: "select_account" },
+      },
+    });
+    if (error) { toast.error("Google sign-in failed"); setBusy(false); }
   }
 
-  function pickAvatar(file: File | null) {
-    if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      toast.error("Choose an image file");
-      return;
+  // ── 3. Phone OTP ──────────────────────────────────────────────────────
+  async function sendOtp() {
+    const clean = normalizePhone(phone);
+    if (clean.length < 10) { toast.error("Enter a valid Botswana number"); return; }
+    if (!supabase) return;
+    setBusy(true);
+    const { error } = await supabase.auth.signInWithOtp({
+      phone: clean,
+      options: { shouldCreateUser: true, data: { role: profileRole } },
+    });
+    if (error) {
+      toast.error(error.message);
+    } else {
+      safeStorageSet(PROFILE_KEY, JSON.stringify({ phone: clean, role: profileRole }));
+      setStep("otp");
+      toast.success("Code sent to " + clean);
     }
-    const reader = new FileReader();
-    reader.onload = () => setAvatar(String(reader.result || ""));
-    reader.readAsDataURL(file);
+    setBusy(false);
   }
 
-  async function saveProfile(event: React.FormEvent) {
-    event.preventDefault();
-    const cleanName = name.trim();
-    const cleanPhone = normalizePhone(phone);
-    const cleanEmail = normalizeEmail(email);
-
-    if (!cleanName || !cleanPhone || !cleanEmail) {
-      toast.error("Complete your profile", { description: "Name, phone and email are required." });
-      return;
-    }
-
-    setSaving(true);
-    try {
-      const profile: SavedProfile = {
-        name: cleanName,
-        phone: cleanPhone,
-        email: cleanEmail,
-        role: profileRole,
-        avatar,
-        verifiedAt: new Date().toISOString(),
-      };
-
-      safeStorageSet(PROFILE_KEY, JSON.stringify(profile));
-      safeStorageSet(USER_KEY, JSON.stringify({ ...profile, role, profileComplete: true }));
-      safeStorageRemove(PENDING_KEY);
-
-      await upsertProfile({ name: cleanName, phone: cleanPhone, email: cleanEmail, role: profileRole }).catch((error) => {
-        console.warn("Profile will sync later", error);
-      });
-
-      setStep("done");
-      toast.success("You are registered", { description: `Welcome, ${cleanName}.` });
-    } finally {
-      setSaving(false);
-    }
+  async function verifyOtp() {
+    const clean = normalizePhone(phone);
+    if (!supabase || otp.length < 6) return;
+    setBusy(true);
+    const { error } = await supabase.auth.verifyOtp({ phone: clean, token: otp, type: "sms" });
+    if (error) toast.error("Wrong code — try again");
+    setBusy(false);
+    // onAuthStateChange handles the redirect on success
   }
 
-  async function startOver() {
-    safeStorageRemove(PENDING_KEY);
-    safeStorageRemove(PROFILE_KEY);
-    safeStorageRemove(USER_KEY);
-    if (supabase) await supabase.auth.signOut().catch(() => null);
-    setName("");
-    setPhone("+267 ");
-    setEmail("");
-    setAvatar("");
-    setStep("email");
+  // ── Loading splash (session check) ───────────────────────────────────
+  if (!ready) {
+    return (
+      <AppShell title="VanLink">
+        <div className="flex min-h-[70vh] items-center justify-center">
+          <div className="h-7 w-7 animate-spin rounded-full border-[3px] border-primary border-t-transparent" />
+        </div>
+      </AppShell>
+    );
   }
 
+  // ── Main UI ───────────────────────────────────────────────────────────
   return (
-    <AppShell title="Account">
-      <div className="space-y-4 pb-6">
-        <div className="vl-fade-in rounded-3xl bg-gradient-to-br from-primary to-accent p-5 text-primary-foreground shadow-[var(--shadow-card)]">
-          <span className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-[11px] font-extrabold uppercase tracking-[0.18em]">
-            {role === "driver" ? <Truck className="h-3.5 w-3.5" /> : <User className="h-3.5 w-3.5" />}
-            {roleLabel(role)} account
-          </span>
-          <h1 className="mt-4 text-2xl font-black leading-tight">VanLink account setup</h1>
-          <p className="mt-2 text-sm leading-6 text-primary-foreground/85">
-            Simple login. Verified email. One clean profile. No confusing codes.
-          </p>
-        </div>
+    <AppShell title="Sign in">
+      <div className="flex min-h-[85vh] flex-col justify-center gap-4 pb-8 pt-4">
 
-        <div className="grid grid-cols-3 gap-2 text-center text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
-          <div className={`rounded-xl px-2 py-2 ${step === "email" || step === "sent" ? "bg-primary text-primary-foreground" : "bg-card"}`}>1 Email</div>
-          <div className={`rounded-xl px-2 py-2 ${step === "profile" ? "bg-primary text-primary-foreground" : "bg-card"}`}>2 Profile</div>
-          <div className={`rounded-xl px-2 py-2 ${step === "done" ? "bg-success text-white" : "bg-card"}`}>3 Done</div>
-        </div>
-
-        {checking && <Panel><p className="text-sm text-muted-foreground">Checking your login...</p></Panel>}
-
-        {!checking && step === "email" && (
-          <Panel>
-            <div className="mb-4">
-              <h2 className="text-lg font-extrabold text-card-foreground">Start with email</h2>
-              <p className="mt-1 text-sm text-muted-foreground">We will send a secure login link. Tap it once, then complete your profile.</p>
-            </div>
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 rounded-2xl border border-input bg-secondary px-3 py-3">
-                <Mail className="h-4 w-4 text-muted-foreground" />
-                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="your@email.com" className="input-mobile" />
-              </div>
-              <PrimaryButton onClick={sendMagicLink} disabled={saving}>{saving ? "Sending..." : "Email me login link"}</PrimaryButton>
-            </div>
-          </Panel>
-        )}
-
-        {!checking && step === "sent" && (
-          <Panel className="border border-success/25 bg-success/10">
-            <div className="flex gap-3">
-              <CheckCircle2 className="mt-0.5 h-6 w-6 shrink-0 text-success" />
-              <div className="flex-1">
-                <h2 className="text-lg font-extrabold text-card-foreground">Check your email</h2>
-                <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                  We sent a sign-in link to <strong>{email}</strong>. Tap <strong>Sign in</strong>. When you return here, we will ask for your profile details.
-                </p>
-                <div className="mt-4 space-y-2">
-                  <PrimaryButton onClick={checkLogin} disabled={saving}>{saving ? "Checking..." : "I clicked the email link"}</PrimaryButton>
-                  <button type="button" onClick={startOver} className="w-full rounded-xl bg-card py-3 text-sm font-bold text-card-foreground">Use different email</button>
-                </div>
-              </div>
-            </div>
-          </Panel>
-        )}
-
-        {!checking && step === "profile" && (
-          <Panel>
-            <form onSubmit={saveProfile} className="space-y-4">
-              <div>
-                <h2 className="text-lg font-extrabold text-card-foreground">Complete your profile</h2>
-                <p className="mt-1 text-sm text-muted-foreground">You are signed in. Add your name, phone and optional profile photo.</p>
-              </div>
-
-              <div className="flex flex-col items-center gap-3 rounded-2xl bg-secondary p-4">
-                <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full bg-card text-3xl font-black text-primary shadow-[var(--shadow-soft)]">
-                  {avatar ? <img src={avatar} alt="Profile" className="h-full w-full object-cover" /> : (name.trim().charAt(0).toUpperCase() || "V")}
-                </div>
-                <label className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-card px-4 py-2 text-xs font-extrabold text-card-foreground shadow-[var(--shadow-soft)]">
-                  <Camera className="h-4 w-4" />
-                  Add profile image
-                  <input type="file" accept="image/*" className="hidden" onChange={(e) => pickAvatar(e.target.files?.[0] || null)} />
-                </label>
-              </div>
-
-              <ProfileInput icon={User} label="Full name" value={name} onChange={setName} placeholder="e.g. Kago Mokoena" />
-              <ProfileInput icon={Phone} label="WhatsApp / phone" value={phone} onChange={setPhone} placeholder="+267 75560140" />
-              <ProfileInput icon={Mail} label="Email" value={email} onChange={setEmail} placeholder="your@email.com" disabled />
-
-              <div className="rounded-2xl border border-primary/15 bg-primary/10 p-3 text-xs leading-5 text-foreground/75">
-                <div className="mb-1 flex items-center gap-2 font-extrabold text-foreground">
-                  <ShieldCheck className="h-4 w-4 text-primary" /> Verified as {roleLabel(role)}
-                </div>
-                {role === "driver" ? "After this, upload your licence, licence disc and BA permit from the driver dashboard." : "After this, you can request a truck from the client dashboard."}
-              </div>
-
-              <PrimaryButton type="submit" disabled={saving}>{saving ? "Saving..." : "Save profile and finish"}</PrimaryButton>
-            </form>
-          </Panel>
-        )}
-
-        {!checking && step === "done" && (
-          <Panel className="border border-success/25 bg-success/10">
-            <div className="text-center">
-              <div className="mx-auto flex h-24 w-24 items-center justify-center overflow-hidden rounded-full bg-white text-3xl font-black text-primary shadow-[var(--shadow-soft)]">
-                {avatar ? <img src={avatar} alt="Profile" className="h-full w-full object-cover" /> : (name.trim().charAt(0).toUpperCase() || "V")}
-              </div>
-              <CheckCircle2 className="mx-auto mt-4 h-8 w-8 text-success" />
-              <h2 className="mt-3 text-xl font-black text-card-foreground">You are registered</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Logged in as <strong>{name || email}</strong>. Your VanLink profile is ready.
-              </p>
-              <div className="mt-5 space-y-2">
-                <PrimaryButton onClick={() => void navigate({ to: dashboardPath })}>Go to my dashboard</PrimaryButton>
-                <button type="button" onClick={startOver} className="w-full rounded-xl bg-card py-3 text-sm font-bold text-card-foreground">Sign out / switch account</button>
-              </div>
-            </div>
-          </Panel>
-        )}
-
-        <div className="flex rounded-xl bg-card p-1 text-sm font-medium shadow-[var(--shadow-card)]">
-          {(["client", "driver"] as const).map((item) => (
-            <Link key={item} to="/signup" search={{ role: item }} className={`flex-1 rounded-lg px-3 py-2 text-center transition ${role === item ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>
-              {item === "client" ? "Client" : "Driver"}
+        {/* Role tabs */}
+        <div className="flex rounded-2xl bg-card p-1 shadow-[var(--shadow-card)]">
+          {(["client", "driver"] as const).map((r) => (
+            <Link
+              key={r}
+              to="/signup"
+              search={{ role: r }}
+              className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-bold transition-all ${
+                role === r
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-muted-foreground"
+              }`}
+            >
+              {r === "driver" ? <Truck className="h-4 w-4" /> : <User className="h-4 w-4" />}
+              {r === "client" ? "Client" : "Driver"}
             </Link>
           ))}
         </div>
+
+        {/* Card */}
+        <div className="rounded-3xl bg-card p-6 shadow-[var(--shadow-card)] space-y-5">
+          <div>
+            <h1 className="text-2xl font-black text-card-foreground">Sign in</h1>
+            <p className="mt-1 text-sm text-muted-foreground">One tap and you're in.</p>
+          </div>
+
+          {/* Google */}
+          <button
+            onClick={signInGoogle}
+            disabled={busy || !isSupabaseConfigured}
+            className="flex w-full items-center justify-center gap-3 rounded-2xl border border-input bg-background py-4 text-sm font-bold text-card-foreground transition hover:bg-secondary disabled:opacity-50"
+          >
+            <svg className="h-5 w-5 shrink-0" viewBox="0 0 24 24">
+              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.47 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+            </svg>
+            {busy ? "Redirecting…" : "Continue with Google"}
+          </button>
+
+          <div className="flex items-center gap-3">
+            <div className="h-px flex-1 bg-border" />
+            <span className="text-xs text-muted-foreground">or use phone</span>
+            <div className="h-px flex-1 bg-border" />
+          </div>
+
+          {/* Phone step */}
+          {step === "login" ? (
+            <div className="space-y-3">
+              <div className="flex gap-2">
+                <div className="flex items-center rounded-2xl border border-input bg-secondary px-4 text-sm font-bold text-card-foreground whitespace-nowrap">
+                  🇧🇼 +267
+                </div>
+                <input
+                  type="tel"
+                  inputMode="numeric"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 8))}
+                  placeholder="75 123 456"
+                  className="input-mobile flex-1 rounded-2xl border border-input bg-secondary px-4 py-3 text-base"
+                />
+              </div>
+              <button
+                onClick={sendOtp}
+                disabled={busy || phone.length < 7}
+                className="w-full rounded-2xl bg-primary py-4 text-sm font-bold text-primary-foreground disabled:opacity-50 transition"
+              >
+                {busy ? "Sending…" : "Send code"}
+              </button>
+            </div>
+          ) : (
+            /* OTP step */
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground text-center">
+                Code sent to <strong>+267 {phone}</strong>
+              </p>
+              <input
+                type="tel"
+                inputMode="numeric"
+                value={otp}
+                onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                placeholder="_ _ _ _ _ _"
+                maxLength={6}
+                autoFocus
+                className="input-mobile w-full rounded-2xl border border-input bg-secondary px-4 py-4 text-center text-2xl font-black tracking-[0.5em]"
+              />
+              <button
+                onClick={verifyOtp}
+                disabled={busy || otp.length < 6}
+                className="w-full rounded-2xl bg-primary py-4 text-sm font-bold text-primary-foreground disabled:opacity-50 transition"
+              >
+                {busy ? "Verifying…" : "Verify and sign in"}
+              </button>
+              <button
+                onClick={() => { setStep("login"); setOtp(""); }}
+                className="w-full py-2 text-sm text-muted-foreground"
+              >
+                ← Different number
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </AppShell>
-  );
-}
-
-function ProfileInput({ icon: Icon, label, value, onChange, placeholder, disabled }: { icon: typeof User; label: string; value: string; onChange: (value: string) => void; placeholder?: string; disabled?: boolean }) {
-  return (
-    <label className="block">
-      <span className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground">{label}</span>
-      <div className="flex items-center gap-2 rounded-2xl border border-input bg-secondary px-3 py-3 focus-within:border-primary">
-        <Icon className="h-4 w-4 text-muted-foreground" />
-        <input required value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} disabled={disabled} className="input-mobile disabled:opacity-70" />
-      </div>
-    </label>
   );
 }

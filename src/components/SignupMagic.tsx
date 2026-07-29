@@ -8,18 +8,20 @@ import { safeStorageGet, safeStorageSet, safeJsonParse } from "@/lib/safe-storag
 type SignupRole = "client" | "driver";
 const PROFILE_KEY = "vanlink_profile";
 
+const BG = "#fdf8f2";
+const DARK = "#1e1208";
+const BROWN = "#3d2b0e";
+const TAN = "#c9a05a";
+const MID = "#b09060";
+const LINE = "#e8d5b7";
+const DIM = "#c8a878";
+
 function normalizePhone(value: string) {
   const digits = String(value || "").replace(/\D/g, "");
   if (digits.startsWith("267") && digits.length === 11) return `+${digits}`;
   if (digits.length === 8) return `+267${digits}`;
   return String(value || "").trim();
 }
-
-const BG = "#0f0900";
-const CREAM = "#fdf6ee";
-const TAN = "#c9a05a";
-const DIM = "#4a3010";
-const DIMMER = "#2a1800";
 
 export function SignupMagic({ role }: { role: SignupRole }) {
   const navigate = useNavigate();
@@ -85,35 +87,41 @@ export function SignupMagic({ role }: { role: SignupRole }) {
     toast.success("Check your email!");
   }
 
+  const inp: React.CSSProperties = {
+    background: "transparent", border: "none", outline: "none",
+    color: DARK, fontSize: 15, width: "100%", fontFamily: "inherit", padding: 0,
+  };
+
   if (!ready) return (
     <div style={{ minHeight: "100vh", background: BG, display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <style>{`@keyframes vl-spin { to { transform: rotate(360deg); } }`}</style>
-      <div style={{ width: 28, height: 28, borderRadius: "50%", border: `3px solid ${TAN}`, borderTopColor: "transparent", animation: "vl-spin 0.8s linear infinite" }} />
+      <style>{`@keyframes vl-spin{to{transform:rotate(360deg)}}`}</style>
+      <div style={{ width: 26, height: 26, borderRadius: "50%", border: `2.5px solid ${TAN}`, borderTopColor: "transparent", animation: "vl-spin 0.8s linear infinite" }} />
     </div>
   );
 
   return (
-    <div style={{ minHeight: "100vh", background: BG, padding: "52px 28px 40px", display: "flex", flexDirection: "column" }}>
+    <div style={{ minHeight: "100vh", background: BG, padding: "52px 28px 40px", display: "flex", flexDirection: "column", fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Display', Arial, sans-serif" }}>
 
+      {/* Logo + brand */}
       <div style={{ marginBottom: 48 }}>
-        <div style={{ width: 52, height: 52, background: TAN, borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 18 }}>
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={BG} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M1 3h15v13H1z"/><path d="M16 8h4l3 3v5h-7V8z"/>
-            <circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>
-          </svg>
-        </div>
-        <p style={{ color: CREAM, fontSize: 26, fontWeight: 800, letterSpacing: "-0.03em", lineHeight: 1.1 }}>Van-Link</p>
-        <p style={{ color: DIM, fontSize: 12, marginTop: 5, letterSpacing: "0.02em" }}>On-demand logistics · Botswana</p>
+        <img
+          src="/icon-512.png"
+          alt="Van-Link"
+          style={{ width: 64, height: 64, borderRadius: 16, marginBottom: 16, display: "block", objectFit: "cover" }}
+        />
+        <p style={{ color: DARK, fontSize: 26, fontWeight: 800, letterSpacing: "-0.03em", lineHeight: 1.1 }}>Van-Link</p>
+        <p style={{ color: MID, fontSize: 12, marginTop: 5, letterSpacing: "0.04em" }}>LOGISTICS · BOTSWANA</p>
       </div>
 
-      <div style={{ display: "flex", borderBottom: `1px solid ${DIMMER}`, marginBottom: 36 }}>
+      {/* Role tabs */}
+      <div style={{ display: "flex", borderBottom: `1.5px solid ${LINE}`, marginBottom: 36 }}>
         {(["client", "driver"] as const).map((r) => (
           <Link key={r} to="/signup" search={{ role: r }} style={{
             flex: 1, paddingBottom: 12, textAlign: "center", textDecoration: "none",
-            borderBottom: role === r ? `2px solid ${TAN}` : "2px solid transparent",
-            marginBottom: -1,
+            borderBottom: role === r ? `2px solid ${BROWN}` : "2px solid transparent",
+            marginBottom: -1.5,
           }}>
-            <span style={{ color: role === r ? TAN : DIM, fontSize: 13, fontWeight: role === r ? 700 : 500 }}>
+            <span style={{ color: role === r ? BROWN : DIM, fontSize: 13, fontWeight: role === r ? 700 : 400 }}>
               {r === "client" ? "Client" : "Driver"}
             </span>
           </Link>
@@ -123,11 +131,12 @@ export function SignupMagic({ role }: { role: SignupRole }) {
       {!emailSent ? (
         <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
 
+          {/* Google */}
           <button onClick={signInGoogle} disabled={busy || !isSupabaseConfigured} style={{
             display: "flex", alignItems: "center", gap: 14, padding: "18px 0",
-            borderTop: `1px solid ${DIMMER}`, borderBottom: `1px solid ${DIMMER}`,
-            background: "none", border: "none", borderBottom: `1px solid ${DIMMER}`,
-            borderTop: `1px solid ${DIMMER}`, cursor: "pointer", width: "100%",
+            borderTop: `1px solid ${LINE}`, borderBottom: `1px solid ${LINE}`,
+            background: "none", border: "none", borderBottom: `1px solid ${LINE}`,
+            borderTop: `1px solid ${LINE}`, cursor: "pointer", width: "100%",
             opacity: busy ? 0.6 : 1,
           }}>
             <svg width="18" height="18" viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
@@ -136,53 +145,59 @@ export function SignupMagic({ role }: { role: SignupRole }) {
               <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
               <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.47 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
             </svg>
-            <span style={{ color: CREAM, fontSize: 15, fontWeight: 600, flex: 1, textAlign: "left" }}>Continue with Google</span>
-            <span style={{ color: DIM, fontSize: 20, lineHeight: 1 }}>›</span>
+            <span style={{ color: DARK, fontSize: 15, fontWeight: 500, flex: 1, textAlign: "left" }}>Continue with Google</span>
+            <span style={{ color: LINE, fontSize: 20, lineHeight: 1 }}>›</span>
           </button>
 
-          <div style={{ padding: "20px 0", borderBottom: `1px solid ${DIMMER}` }}>
-            <p style={{ color: DIM, fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 10 }}>Email</p>
+          {/* Email */}
+          <div style={{ padding: "20px 0", borderBottom: `1px solid ${LINE}` }}>
+            <p style={{ color: MID, fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 10 }}>Email</p>
             <input
               type="email" inputMode="email" value={email}
               onChange={(e) => setEmail(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && sendMagicLink()}
               placeholder="your@email.com"
-              style={{ background: "transparent", border: "none", outline: "none", color: CREAM, fontSize: "16px", width: "100%", fontFamily: "inherit" }}
+              style={inp}
             />
           </div>
 
-          <div style={{ padding: "20px 0", borderBottom: `1px solid ${DIMMER}` }}>
-            <p style={{ color: DIM, fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 10 }}>Phone</p>
+          {/* Phone */}
+          <div style={{ padding: "20px 0", borderBottom: `1px solid ${LINE}` }}>
+            <p style={{ color: MID, fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 10 }}>Phone</p>
             <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-              <span style={{ color: TAN, fontSize: 15, fontWeight: 600, flexShrink: 0 }}>🇧🇼 +267</span>
+              <span style={{ color: BROWN, fontSize: 15, fontWeight: 600, flexShrink: 0 }}>🇧🇼 +267</span>
               <input
                 type="tel" inputMode="numeric" value={phone}
                 onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 8))}
                 placeholder="75 123 456"
-                style={{ background: "transparent", border: "none", outline: "none", color: CREAM, fontSize: "16px", width: "100%", fontFamily: "inherit" }}
+                style={inp}
               />
             </div>
           </div>
 
+          {/* CTA */}
           <button onClick={sendMagicLink} disabled={busy || !email.includes("@")} style={{
-            marginTop: "auto", paddingTop: 40, background: TAN, border: "none", borderRadius: 14,
+            marginTop: "auto", paddingTop: 0,
+            marginTop: 40,
+            background: BROWN, border: "none", borderRadius: 14,
             padding: "17px", color: BG, fontSize: 15, fontWeight: 800,
             cursor: busy || !email.includes("@") ? "not-allowed" : "pointer",
-            opacity: busy || !email.includes("@") ? 0.45 : 1,
+            opacity: busy || !email.includes("@") ? 0.4 : 1,
+            fontFamily: "inherit",
           }}>
             {busy ? "Sending…" : "Send login link"}
           </button>
         </div>
       ) : (
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 16, paddingTop: 20 }}>
-          <p style={{ fontSize: 40 }}>📬</p>
-          <p style={{ color: CREAM, fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em" }}>Check your email</p>
-          <p style={{ color: DIM, fontSize: 14, lineHeight: 1.7 }}>
-            Tap the link sent to <span style={{ color: CREAM }}>{email}</span> to sign in instantly.
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 14, paddingTop: 12 }}>
+          <p style={{ fontSize: 44 }}>📬</p>
+          <p style={{ color: DARK, fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em" }}>Check your email</p>
+          <p style={{ color: MID, fontSize: 14, lineHeight: 1.7 }}>
+            Tap the link sent to <span style={{ color: BROWN, fontWeight: 700 }}>{email}</span> to sign in instantly.
           </p>
           <button onClick={() => { setEmailSent(false); setEmail(""); setPhone(""); }} style={{
-            background: "none", border: "none", color: DIM, fontSize: 13,
-            cursor: "pointer", marginTop: 16, textAlign: "left", padding: 0,
+            background: "none", border: "none", color: MID, fontSize: 13,
+            cursor: "pointer", marginTop: 8, textAlign: "left", padding: 0, fontFamily: "inherit",
           }}>
             ← Different email
           </button>

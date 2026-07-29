@@ -2,9 +2,6 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { Home, MapPin, Package, Truck, User } from "lucide-react";
 import { type ReactNode } from "react";
 
-const HOSTED_LOGO_URL =
-  "https://res.cloudinary.com/dyfecybo0/image/upload/f_auto,q_auto,w_128,h_128,c_fill/v1782459767/WhatsApp_Image_2026-05-23_at_15.51.54_mzlajs.jpg";
-
 const TABS = [
   { to: "/", label: "Home", icon: Home },
   { to: "/client", label: "Book", icon: Package },
@@ -20,17 +17,18 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="mx-auto flex min-h-screen max-w-[820px] flex-col">
-        <header className="sticky top-0 z-20 border-b border-border/70 bg-card/95 backdrop-blur-xl">
-          <div className="flex items-center gap-3 px-4 py-3.5 sm:px-6">
+
+        <header className="sticky top-0 z-20 border-b border-border bg-card/95 backdrop-blur-xl">
+          <div className="flex items-center gap-3 px-4 py-3 sm:px-6">
             <Link to="/" className="flex min-w-0 items-center gap-3">
               <img
-                src={HOSTED_LOGO_URL}
-                alt="VanLink"
+                src="/icon-512.png"
+                alt="Van-Link"
                 style={{ display: "block" }}
-                className="h-10 w-10 rounded-md border border-border bg-white object-cover"
+                className="h-9 w-9 rounded-xl object-cover"
               />
               <div className="leading-tight">
-                <span className="block text-[15px] font-black tracking-[-0.02em] text-card-foreground">VanLink</span>
+                <span className="block text-[15px] font-black tracking-[-0.02em] text-card-foreground">Van-Link</span>
                 <span className="block text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                   Botswana Logistics
                 </span>
@@ -42,6 +40,7 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
               </span>
             )}
           </div>
+
           <nav className="hidden px-6 pb-3 sm:block">
             <ul className="grid grid-cols-5 gap-2">
               {TABS.map((t) => {
@@ -53,7 +52,7 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
                       to={t.to}
                       className={`flex items-center justify-center gap-2 rounded-md border px-3 py-2 text-xs font-bold transition-all duration-200 ${
                         active
-                          ? "border-primary bg-primary text-primary-foreground shadow-[var(--shadow-card)]"
+                          ? "border-primary bg-primary text-primary-foreground"
                           : "border-border bg-card text-muted-foreground hover:border-primary/25 hover:text-card-foreground"
                       }`}
                     >
@@ -116,7 +115,9 @@ export function Chip({
       type="button"
       onClick={onClick}
       className={`shrink-0 rounded-md border px-3 py-2 text-xs font-bold transition-colors ${
-        active ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-card-foreground hover:border-primary/30"
+        active
+          ? "border-primary bg-primary text-primary-foreground"
+          : "border-border bg-card text-card-foreground hover:border-primary/30"
       }`}
     >
       {children}

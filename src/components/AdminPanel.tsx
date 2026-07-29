@@ -1,194 +1,494 @@
-import { Link, useNavigate } from "@tanstack/react-router";
-import { Truck, User } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
+import type { Session } from "@supabase/supabase-js";
 import { toast } from "sonner";
-import { AppShell } from "@/components/AppShell";
-import { supabase, isSupabaseConfigured, upsertProfile } from "@/lib/supabase";
-import { safeStorageGet, safeStorageSet, safeJsonParse } from "@/lib/safe-storage";
+import { CheckCircle2, Loader2, LogOut, Package, ShieldAlert, ShieldCheck, XCircle } from "lucide-react";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase";
+import type { LoadRecord, PaymentRequestRecord, TruckRecord, WalletTransaction } from "@/lib/supabase";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-type SignupRole = "client" | "driver";
-const PROFILE_KEY = "vanlink_profile";
+const GOLD = "#8B6914";
+const GOLD_BORDER = "#D4A843";
 
-function normalizePhone(value: string) {
-  const digits = String(value || "").replace(/\D/g, "");
-  if (digits.startsWith("267") && digits.length === 11) return `+${digits}`;
-  if (digits.length === 8) return `+267${digits}`;
-  return String(value || "").trim();
+function statusVariant(status: string): "default" | "secondary" | "destructive" | "outline" {
+  const n = (status || "").toLowerCase();
+  if (["verified", "completed", "approved", "active"].includes(n)) return "default";
+  if (["cancelled", "rejected", "declined", "suspended"].includes(n)) return "destructive";
+  if (["pending", "pending review", "broadcasting"].includes(n)) return "secondary";
+  return "outline";
 }
 
-export function SignupMagic({ role }: { role: SignupRole }) {
-  const navigate = useNavigate();
-  const profileRole = role === "driver" ? "driver" : "customer";
-  const dashboardPath = role === "driver" ? "/driver" : "/client";
+type SupabaseErrorDetails = { message: string; code?: string; hint?: string; details?: string };
 
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [emailSent, setEmailSent] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [ready, setReady] = useState(false);
+function extractSupabaseError(error: unknown): SupabaseErrorDetails {
+  if (error && typeof error === "object") {
+    const e = error as { message?: unknown; code?: unknown; hint?: unknown; details?: unknown };
+    return {
+      message: typeof e.message === "string" && e.message ? e.message : String(error),
+      code: typeof e.code === "string" ? e.code : undefined,
+      hint: typeof e.hint === "string" ? e.hint : undefined,
+      details: typeof e.details === "string" ? e.details : undefined,
+    };
+  }
+  return { message: error instanceof Error ? error.message : String(error) };
+}
+
+function Centered({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{ minHeight: "100vh", background: "#1a1208", display: "flex", alignItems: "center", justifyContent: "center", padding: "16px" }}>
+      <div style={{ width: "100%", maxWidth: "360px", textAlign: "center" }}>{children}</div>
+    </div>
+  );
+}
+
+function GoldBtn({ onClick, disabled, children, variant = "primary" }: {
+  onClick?: () => void; disabled?: boolean; children: React.ReactNode; variant?: "primary" | "danger" | "outline";
+}) {
+  const styles: React.CSSProperties = variant === "primary"
+    ? { background: GOLD, color: "#fff", border: "none" }
+    : variant === "danger"
+    ? { background: "#dc2626", color: "#fff", border: "none" }
+    : { background: "transparent", color: GOLD, border: `1px solid ${GOLD_BORDER}` };
+  return (
+    <button onClick={onClick} disabled={disabled} style={{
+      ...styles, padding: "10px 16px", borderRadius: "12px", fontWeight: 700, fontSize: "13px",
+      cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1,
+      display: "flex", alignItems: "center", gap: "6px", transition: "opacity 0.15s",
+    }}>
+      {children}
+    </button>
+  );
+}
+
+export function AdminPanel() {
+  const [session, setSession] = useState<Session | null>(null);
+  const [checkingSession, setCheckingSession] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [checkingAdmin, setCheckingAdmin] = useState(false);
 
   useEffect(() => {
-    if (!supabase) { setReady(true); return; }
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session?.user) void navigate({ to: dashboardPath });
-      else setReady(true);
-    });
-    const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event !== "SIGNED_IN" || !session?.user) return;
-      const u = session.user;
-      const name = u.user_metadata?.full_name || u.user_metadata?.name || "";
-      const savedEmail = u.email || "";
-      const savedPhone = safeJsonParse<{ phone?: string } | null>(
-        safeStorageGet(PROFILE_KEY), null
-      )?.phone || "";
-      safeStorageSet(PROFILE_KEY, JSON.stringify({ name, email: savedEmail, phone: savedPhone, role: profileRole }));
-      await upsertProfile({ name, phone: savedPhone, email: savedEmail, role: profileRole }).catch(() => null);
-      toast.success(`Welcome to Van-Link${name ? ", " + name.split(" ")[0] : ""}!`);
-      void navigate({ to: dashboardPath });
-    });
+    if (!supabase) { setCheckingSession(false); return; }
+    supabase.auth.getSession().then(({ data }) => { setSession(data.session); setCheckingSession(false); });
+    const { data: listener } = supabase.auth.onAuthStateChange((_e, next) => setSession(next));
     return () => listener.subscription.unsubscribe();
-  }, [dashboardPath, navigate, profileRole]);
+  }, []);
 
-  async function signInGoogle() {
-    if (!supabase) return;
-    setBusy(true);
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: `${window.location.origin}/signup?role=${role}`,
-        queryParams: { prompt: "select_account" },
-      },
-    });
-    if (error) { toast.error("Google sign-in failed"); setBusy(false); }
+  useEffect(() => {
+    if (!session) { setIsAdmin(false); return; }
+    let cancelled = false;
+    setCheckingAdmin(true);
+    (async () => {
+      try {
+        const { data, error } = await supabase!.rpc("is_admin");
+        if (error) throw error;
+        if (!cancelled) setIsAdmin(Boolean(data));
+      } catch {
+        if (!cancelled) { setIsAdmin(false); toast.error("Could not verify admin access"); }
+      } finally {
+        if (!cancelled) setCheckingAdmin(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [session?.user?.id]);
+
+  async function handleSignOut() {
+    await supabase?.auth.signOut().catch(() => null);
+    setSession(null); setIsAdmin(false);
   }
 
-  async function sendMagicLink() {
-    const clean = email.trim().toLowerCase();
-    if (!clean || !clean.includes("@")) { toast.error("Enter a valid email"); return; }
-    if (!supabase) return;
-    setBusy(true);
-    const { error } = await supabase.auth.signInWithOtp({
-      email: clean,
-      options: {
-        shouldCreateUser: true,
-        emailRedirectTo: `${window.location.origin}/signup?role=${role}`,
-        data: { role: profileRole },
-      },
-    });
-    if (error) { toast.error(error.message); setBusy(false); return; }
-    const cleanPhone = normalizePhone(phone);
-    safeStorageSet(PROFILE_KEY, JSON.stringify({ email: clean, phone: cleanPhone, role: profileRole }));
-    setEmailSent(true);
-    setBusy(false);
-    toast.success("Check your email — link sent!");
-  }
+  if (!isSupabaseConfigured) return <Centered><p style={{ color: "#ccc" }}>Admin not configured.</p></Centered>;
+  if (checkingSession) return <Centered><Loader2 style={{ color: GOLD }} className="mx-auto h-8 w-8 animate-spin" /></Centered>;
+  if (!session) return <LoginForm />;
+  if (checkingAdmin) return (
+    <Centered>
+      <Loader2 style={{ color: GOLD }} className="mx-auto h-8 w-8 animate-spin" />
+      <p style={{ color: "#aaa", marginTop: 12, fontSize: 13 }}>Checking access…</p>
+    </Centered>
+  );
+  if (!isAdmin) return (
+    <Centered>
+      <ShieldAlert style={{ color: "#dc2626", margin: "0 auto 12px" }} className="h-10 w-10" />
+      <p style={{ color: "#fff", marginBottom: 16, fontSize: 14 }}>{session.user.email} is not an admin.</p>
+      <GoldBtn variant="outline" onClick={handleSignOut}><LogOut className="h-4 w-4" /> Sign out</GoldBtn>
+    </Centered>
+  );
 
-  if (!ready) {
-    return (
-      <AppShell title="Van-Link">
-        <div className="flex min-h-[70vh] items-center justify-center">
-          <div className="h-7 w-7 animate-spin rounded-full border-[3px] border-primary border-t-transparent" />
-        </div>
-      </AppShell>
-    );
+  return <AdminDashboard email={session.user.email ?? ""} onSignOut={handleSignOut} />;
+}
+
+function LoginForm() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const inputStyle: React.CSSProperties = {
+    width: "100%", padding: "12px 14px", borderRadius: "12px",
+    border: `1.5px solid ${GOLD_BORDER}`, background: "#2a1f0a",
+    color: "#fff", fontSize: "15px", outline: "none", boxSizing: "border-box",
+  };
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (!supabase) return;
+    setSubmitting(true); setError(null);
+    try {
+      const { error: err } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+      if (err) throw err;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Sign in failed");
+    } finally { setSubmitting(false); }
   }
 
   return (
-    <AppShell title="Van-Link">
-      <div className="flex min-h-[90vh] flex-col justify-center gap-4 pb-8 pt-2">
-
-        {/* Logo */}
-        <div className="text-center mb-2">
-          <img src="/icon-512.png" alt="Van-Link" className="mx-auto h-20 w-20 rounded-2xl shadow-lg" />
-          <h1 className="mt-3 text-2xl font-black text-card-foreground">Van-Link</h1>
-          <p className="text-sm text-muted-foreground">On-demand logistics · Botswana</p>
+    <Centered>
+      <form onSubmit={handleSubmit} style={{ background: "#241a08", border: `1.5px solid ${GOLD_BORDER}`, borderRadius: "20px", padding: "28px 24px", textAlign: "left" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 24 }}>
+          <ShieldCheck style={{ color: GOLD }} className="h-6 w-6" />
+          <span style={{ color: GOLD, fontWeight: 900, fontSize: 14, letterSpacing: "0.15em", textTransform: "uppercase" }}>Van-Link Admin</span>
         </div>
-
-        {/* Role picker */}
-        <div className="flex rounded-2xl bg-card p-1 shadow-[var(--shadow-card)]">
-          {(["client", "driver"] as const).map((r) => (
-            <Link key={r} to="/signup" search={{ role: r }}
-              className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold transition-all ${
-                role === r ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground"
-              }`}
-            >
-              {r === "driver" ? <Truck className="h-4 w-4" /> : <User className="h-4 w-4" />}
-              {r === "client" ? "Client" : "Driver"}
-            </Link>
-          ))}
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ display: "block", color: "#cca84a", fontSize: 12, fontWeight: 700, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.08em" }}>Email</label>
+          <input type="email" required autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="admin@vanlink.co.bw" style={inputStyle} />
         </div>
+        <div style={{ marginBottom: 20 }}>
+          <label style={{ display: "block", color: "#cca84a", fontSize: 12, fontWeight: 700, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.08em" }}>Password</label>
+          <input type="password" required autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" style={inputStyle} />
+        </div>
+        {error && <p style={{ color: "#f87171", fontSize: 13, marginBottom: 16, fontWeight: 600 }}>{error}</p>}
+        <button type="submit" disabled={submitting} style={{
+          width: "100%", background: GOLD, color: "#fff", border: "none", borderRadius: "12px",
+          padding: "14px", fontWeight: 800, fontSize: 15, cursor: submitting ? "not-allowed" : "pointer",
+          opacity: submitting ? 0.7 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+        }}>
+          {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+          {submitting ? "Signing in…" : "Sign in"}
+        </button>
+      </form>
+    </Centered>
+  );
+}
 
-        {/* Sign in card */}
-        <div className="rounded-3xl bg-card p-6 shadow-[var(--shadow-card)] space-y-4">
-
-          {/* Google */}
-          <button onClick={signInGoogle} disabled={busy || !isSupabaseConfigured}
-            className="flex w-full items-center justify-center gap-3 rounded-2xl border border-input bg-background py-4 text-sm font-bold text-card-foreground transition hover:bg-secondary disabled:opacity-50"
-          >
-            <svg className="h-5 w-5 shrink-0" viewBox="0 0 24 24">
-              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.47 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-            </svg>
-            Continue with Google
-          </button>
-
-          <div className="flex items-center gap-3">
-            <div className="h-px flex-1 bg-border" />
-            <span className="text-xs text-muted-foreground">or</span>
-            <div className="h-px flex-1 bg-border" />
+function AdminDashboard({ email, onSignOut }: { email: string; onSignOut: () => void }) {
+  return (
+    <div style={{ minHeight: "100vh", background: "#1a1208", color: "#fff" }}>
+      <div style={{ maxWidth: 900, margin: "0 auto", padding: "20px 16px" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24, padding: "16px 20px", background: "#241a08", borderRadius: 16, border: `1px solid ${GOLD_BORDER}` }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <ShieldCheck style={{ color: GOLD }} className="h-6 w-6" />
+            <div>
+              <p style={{ color: GOLD, fontWeight: 900, fontSize: 14, margin: 0 }}>Van-Link Admin</p>
+              <p style={{ color: "#888", fontSize: 12, margin: 0 }}>{email}</p>
+            </div>
           </div>
-
-          {!emailSent ? (
-            <div className="space-y-3">
-              {/* Email */}
-              <input
-                type="email"
-                inputMode="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="your@email.com"
-                className="input-mobile w-full rounded-2xl border border-input bg-secondary px-4 py-3 text-base"
-              />
-
-              {/* Phone */}
-              <div className="flex gap-2">
-                <div className="flex items-center rounded-2xl border border-input bg-secondary px-4 text-sm font-bold text-card-foreground whitespace-nowrap">
-                  🇧🇼 +267
-                </div>
-                <input
-                  type="tel"
-                  inputMode="numeric"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 8))}
-                  placeholder="75 123 456"
-                  className="input-mobile flex-1 rounded-2xl border border-input bg-secondary px-4 py-3 text-base"
-                />
-              </div>
-
-              <button
-                onClick={sendMagicLink}
-                disabled={busy || !email.includes("@")}
-                className="w-full rounded-2xl bg-primary py-4 text-sm font-bold text-primary-foreground disabled:opacity-50 transition active:scale-[0.98]"
-              >
-                {busy ? "Sending…" : "Send login link"}
-              </button>
-            </div>
-          ) : (
-            <div className="rounded-2xl border border-green-200 bg-green-50 dark:bg-green-950/20 p-5 text-center space-y-2">
-              <p className="text-3xl">📬</p>
-              <p className="font-black text-card-foreground">Check your email</p>
-              <p className="text-sm text-muted-foreground">Tap the link in <strong>{email}</strong> to sign in instantly.</p>
-              <button onClick={() => { setEmailSent(false); setEmail(""); setPhone(""); }}
-                className="text-xs text-muted-foreground underline pt-1 block mx-auto"
-              >
-                Use different email
-              </button>
-            </div>
-          )}
+          <GoldBtn variant="outline" onClick={onSignOut}><LogOut className="h-4 w-4" /> Sign out</GoldBtn>
         </div>
+        <Tabs defaultValue="drivers">
+          <TabsList className="grid w-full grid-cols-4 mb-4" style={{ background: "#241a08", border: `1px solid ${GOLD_BORDER}` }}>
+            <TabsTrigger value="drivers" style={{ color: "#cca84a" }}>Drivers</TabsTrigger>
+            <TabsTrigger value="payments" style={{ color: "#cca84a" }}>Payments</TabsTrigger>
+            <TabsTrigger value="loads" style={{ color: "#cca84a" }}>Loads</TabsTrigger>
+            <TabsTrigger value="wallet" style={{ color: "#cca84a" }}>Wallet</TabsTrigger>
+          </TabsList>
+          <TabsContent value="drivers"><DriversTab /></TabsContent>
+          <TabsContent value="payments"><PaymentsTab /></TabsContent>
+          <TabsContent value="loads"><LoadsTab /></TabsContent>
+          <TabsContent value="wallet"><WalletTab /></TabsContent>
+        </Tabs>
       </div>
-    </AppShell>
+    </div>
+  );
+}
+
+const cardStyle: React.CSSProperties = { background: "#241a08", border: `1px solid ${GOLD_BORDER}`, borderRadius: 16, overflow: "hidden" };
+const thStyle: React.CSSProperties = { color: "#cca84a", fontWeight: 700, fontSize: 12, padding: "12px 16px", textTransform: "uppercase" as const, letterSpacing: "0.06em", borderBottom: "1px solid #3a2a10", textAlign: "left" as const };
+const tdStyle: React.CSSProperties = { color: "#e5d5a0", fontSize: 13, padding: "12px 16px", borderBottom: "1px solid #2a1f0a" };
+
+function DriversTab() {
+  const [rows, setRows] = useState<TruckRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [actingId, setActingId] = useState<string | null>(null);
+
+  async function load() {
+    if (!supabase) return;
+    setLoading(true);
+    const { data, error } = await supabase.from("trucks").select("*").order("created_at", { ascending: false });
+    if (error) toast.error("Could not load drivers");
+    setRows((data || []) as TruckRecord[]);
+    setLoading(false);
+  }
+
+  useEffect(() => { void load(); }, []);
+
+  async function approve(id: string) {
+    if (!supabase) return;
+    setActingId(id);
+    const { error } = await supabase.from("trucks").update({ status: "verified" }).eq("id", id);
+    if (error) toast.error(error.message); else toast.success("Driver approved ✅");
+    await load(); setActingId(null);
+  }
+
+  async function reject(id: string) {
+    if (!supabase) return;
+    setActingId(id);
+    const { error } = await supabase.from("trucks").update({ status: "rejected" }).eq("id", id);
+    if (error) toast.error(error.message); else toast.success("Driver rejected");
+    await load(); setActingId(null);
+  }
+
+  if (loading) return <TabLoading />;
+  if (!rows.length) return <TabEmpty label="No drivers yet" />;
+
+  const pending = rows.filter(r => ["pending", "pending review"].includes((r.status ?? "").toLowerCase()));
+  const others = rows.filter(r => !["pending", "pending review"].includes((r.status ?? "").toLowerCase()));
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      {pending.length > 0 && (
+        <div style={{ background: "#2a1f06", border: `2px solid ${GOLD_BORDER}`, borderRadius: 16, padding: 16 }}>
+          <p style={{ color: GOLD, fontWeight: 900, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 12 }}>
+            ⏳ {pending.length} awaiting approval
+          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {pending.map((row) => (
+              <div key={row.id} style={{ background: "#1a1208", border: "1px solid #3a2a10", borderRadius: 12, padding: 16 }}>
+                <div style={{ marginBottom: 12 }}>
+                  <p style={{ color: "#fff", fontWeight: 800, fontSize: 15, margin: 0 }}>{row.name}</p>
+                  <p style={{ color: "#888", fontSize: 12, margin: "4px 0 0" }}>{row.phone}</p>
+                  <p style={{ color: "#888", fontSize: 12, margin: "2px 0 0" }}>{row.category} · {row.plate}</p>
+                  {row.area && <p style={{ color: "#888", fontSize: 12, margin: "2px 0 0" }}>Area: {row.area}</p>}
+                </div>
+                {row.id && (
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <GoldBtn variant="primary" disabled={actingId === row.id} onClick={() => approve(row.id as string)}>
+                      <CheckCircle2 className="h-4 w-4" /> Approve
+                    </GoldBtn>
+                    <GoldBtn variant="danger" disabled={actingId === row.id} onClick={() => reject(row.id as string)}>
+                      <XCircle className="h-4 w-4" /> Reject
+                    </GoldBtn>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {others.length > 0 && (
+        <div style={cardStyle}>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead><tr>{["Name","Phone","Category","Plate","Wallet","Status"].map(h => <th key={h} style={thStyle}>{h}</th>)}</tr></thead>
+            <tbody>
+              {others.map((row) => (
+                <tr key={row.id ?? row.phone}>
+                  <td style={tdStyle}>{row.name}</td>
+                  <td style={tdStyle}>{row.phone}</td>
+                  <td style={tdStyle}>{row.category}</td>
+                  <td style={tdStyle}>{row.plate}</td>
+                  <td style={tdStyle}>P{Number(row.wallet ?? 0).toFixed(2)}</td>
+                  <td style={tdStyle}><Badge variant={statusVariant(row.status ?? "")}>{row.status ?? "—"}</Badge></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PaymentsTab() {
+  const [rows, setRows] = useState<PaymentRequestRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [actingId, setActingId] = useState<string | null>(null);
+  const [verifyError, setVerifyError] = useState<SupabaseErrorDetails | null>(null);
+
+  async function load() {
+    if (!supabase) return;
+    setLoading(true);
+    const { data, error } = await supabase.from("payment_requests").select("*").order("created_at", { ascending: false });
+    if (error) toast.error("Could not load payments");
+    else setRows((data || []) as PaymentRequestRecord[]);
+    setLoading(false);
+  }
+
+  useEffect(() => { void load(); }, []);
+
+  async function approve(id: string) {
+    if (!supabase) return;
+    setActingId(id); setVerifyError(null);
+    try {
+      const { error } = await supabase.rpc("admin_verify_payment", { p_request_id: id });
+      if (error) throw error;
+      toast.success("Payment approved"); await load();
+    } catch (error) {
+      setVerifyError(extractSupabaseError(error));
+      toast.error("Could not approve payment");
+    } finally { setActingId(null); }
+  }
+
+  async function reject(id: string) {
+    if (!supabase) return;
+    setActingId(id);
+    try {
+      const { error } = await supabase.from("payment_requests").update({ status: "rejected" }).eq("id", id);
+      if (error) throw error;
+      toast.success("Payment rejected"); await load();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Action failed");
+    } finally { setActingId(null); }
+  }
+
+  if (loading) return <TabLoading />;
+  if (!rows.length) return <TabEmpty label="No payment requests yet" />;
+
+  return (
+    <div style={cardStyle}>
+      {verifyError && (
+        <div style={{ background: "#3a0a0a", border: "1px solid #dc2626", borderRadius: 12, padding: 12, margin: 12, fontSize: 12, color: "#f87171" }}>
+          <p style={{ fontWeight: 700, margin: "0 0 4px" }}>Error: {verifyError.message}</p>
+          {verifyError.code && <p style={{ margin: 0 }}>Code: {verifyError.code}</p>}
+        </div>
+      )}
+      <table style={{ width: "100%", borderCollapse: "collapse" }}>
+        <thead><tr>{["Phone","Amount","Provider","Pay to","Status","Action"].map(h => <th key={h} style={thStyle}>{h}</th>)}</tr></thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.id}>
+              <td style={tdStyle}>{row.phone}</td>
+              <td style={tdStyle}>P{Number(row.amount).toFixed(2)}</td>
+              <td style={tdStyle}>{row.provider}</td>
+              <td style={tdStyle}>{row.pay_to_number}</td>
+              <td style={tdStyle}><Badge variant={statusVariant(row.status)}>{row.status}</Badge></td>
+              <td style={{ ...tdStyle, textAlign: "right" }}>
+                {row.status === "pending" && row.id && (
+                  <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                    <GoldBtn variant="primary" disabled={actingId === row.id} onClick={() => approve(row.id as string)}>
+                      <CheckCircle2 className="h-3 w-3" /> Approve
+                    </GoldBtn>
+                    <GoldBtn variant="danger" disabled={actingId === row.id} onClick={() => reject(row.id as string)}>
+                      <XCircle className="h-3 w-3" /> Reject
+                    </GoldBtn>
+                  </div>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function LoadsTab() {
+  const [rows, setRows] = useState<LoadRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [actingId, setActingId] = useState<string | null>(null);
+
+  async function load() {
+    if (!supabase) return;
+    setLoading(true);
+    const { data, error } = await supabase.from("loads").select("*").order("created_at", { ascending: false });
+    if (error) toast.error("Could not load loads");
+    else setRows((data || []) as LoadRecord[]);
+    setLoading(false);
+  }
+
+  useEffect(() => { void load(); }, []);
+
+  async function cancel(id: string) {
+    if (!supabase) return;
+    setActingId(id);
+    try {
+      const { error } = await supabase.rpc("admin_cancel_load", { p_load_id: id });
+      if (error) throw error;
+      toast.success("Load cancelled"); await load();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Action failed");
+    } finally { setActingId(null); }
+  }
+
+  if (loading) return <TabLoading />;
+  if (!rows.length) return <TabEmpty label="No loads yet" />;
+
+  return (
+    <div style={cardStyle}>
+      <table style={{ width: "100%", borderCollapse: "collapse" }}>
+        <thead><tr>{["ID","Customer","Route","Offer","Status","Driver","Action"].map(h => <th key={h} style={thStyle}>{h}</th>)}</tr></thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.id}>
+              <td style={{ ...tdStyle, fontFamily: "monospace", fontSize: 11 }}>{row.id}</td>
+              <td style={tdStyle}>{row.customer}</td>
+              <td style={{ ...tdStyle, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.pickup} → {row.dropoff}</td>
+              <td style={tdStyle}>P{Number(row.offer).toFixed(2)}</td>
+              <td style={tdStyle}><Badge variant={statusVariant(row.status)}>{row.status}</Badge></td>
+              <td style={tdStyle}>{row.driver ?? "—"}</td>
+              <td style={{ ...tdStyle, textAlign: "right" }}>
+                {!["Completed", "Cancelled"].includes(row.status) && (
+                  <GoldBtn variant="danger" disabled={actingId === row.id} onClick={() => cancel(row.id)}>
+                    <XCircle className="h-3 w-3" /> Cancel
+                  </GoldBtn>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function WalletTab() {
+  const [rows, setRows] = useState<WalletTransaction[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!supabase) return;
+    supabase.from("wallet_transactions").select("*").order("created_at", { ascending: false })
+      .then(({ data, error }) => {
+        if (error) toast.error("Could not load wallet");
+        setRows((data || []) as WalletTransaction[]);
+        setLoading(false);
+      });
+  }, []);
+
+  if (loading) return <TabLoading />;
+  if (!rows.length) return <TabEmpty label="No wallet transactions yet" />;
+
+  return (
+    <div style={cardStyle}>
+      <table style={{ width: "100%", borderCollapse: "collapse" }}>
+        <thead><tr>{["Phone","Type","Amount","Load","Note","Date"].map(h => <th key={h} style={thStyle}>{h}</th>)}</tr></thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.id ?? `${row.phone}-${row.created_at}`}>
+              <td style={tdStyle}>{row.phone}</td>
+              <td style={tdStyle}>{row.type}</td>
+              <td style={{ ...tdStyle, color: Number(row.amount) < 0 ? "#f87171" : "#86efac" }}>P{Number(row.amount).toFixed(2)}</td>
+              <td style={tdStyle}>{row.load_id ?? "—"}</td>
+              <td style={{ ...tdStyle, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.note ?? "—"}</td>
+              <td style={tdStyle}>{row.created_at ? new Date(row.created_at).toLocaleString() : "—"}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function TabLoading() {
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, padding: "40px 20px", background: "#241a08", borderRadius: 16, border: `1px solid ${GOLD_BORDER}`, color: "#cca84a" }}>
+      <Loader2 className="h-5 w-5 animate-spin" /> Loading…
+    </div>
+  );
+}
+
+function TabEmpty({ label }: { label: string }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, padding: "40px 20px", background: "#241a08", borderRadius: 16, border: `1px solid ${GOLD_BORDER}`, color: "#888" }}>
+      <Package className="h-6 w-6" style={{ color: GOLD }} />
+      <p style={{ margin: 0, fontSize: 14 }}>{label}</p>
+    </div>
   );
 }

@@ -3,7 +3,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { base44 } from '@/api/base44Client';
 import BookingCard from '@/components/BookingCard';
 import { Package, Plus } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link } from '@tanstack/react-router';
 import { Button } from '@/components/ui/button';
 
 export default function MyBookings() {

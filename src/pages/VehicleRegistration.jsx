@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/AuthContext';
 import { base44 } from '@/api/base44Client';
 import { ArrowLeft, AlertCircle, CheckCircle, Star, Truck } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link } from '@tanstack/react-router';
 import VehicleRegistrationForm from '@/components/VehicleRegistrationForm';
 
 export default function VehicleRegistration() {

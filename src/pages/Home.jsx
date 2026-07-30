@@ -1,5 +1,5 @@
 import { useAuth } from '@/lib/AuthContext';
-import { Link } from 'react-router-dom';
+import { Link } from '@tanstack/react-router';
 import { ArrowRight, Shield, Zap, Package } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
@@ -132,7 +132,7 @@ export default function Home() {
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 0.12 + index * 0.07 }}
                     >
-                      <Link to={`/new-booking?category=${key}`} className="relative rounded-2xl overflow-hidden h-32 group block shadow-sm">
+                      <Link to="/new-booking" search={{ category: key }} className="relative rounded-2xl overflow-hidden h-32 group block shadow-sm">
                         {img ? (
                           <>
                             <img src={img} alt={cat.label} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-400" />

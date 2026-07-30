@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { useAuth } from '@/lib/AuthContext';
 import { base44 } from '@/api/base44Client';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '@tanstack/react-router';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,7 +11,7 @@ import { ArrowLeft, MapPin, Route, Loader2, ChevronRight } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 import StopsBuilder from '@/components/StopsBuilder';
 import { notifyMatchingDrivers } from '@/hooks/useNotifyDrivers';
-import { Link } from 'react-router-dom';
+import { Link } from '@tanstack/react-router';
 
 function haversineKm(lat1, lng1, lat2, lng2) {
   const R = 6371;
@@ -103,7 +103,7 @@ export default function NewBooking() {
       status: 'broadcasting',
     });
     notifyMatchingDrivers(newBooking).catch(console.error);
-    navigate('/my-bookings');
+    navigate({ to: '/my-bookings' });
   }
 
   return (

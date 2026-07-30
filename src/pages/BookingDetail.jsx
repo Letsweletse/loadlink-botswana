@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from '@tanstack/react-router';
 import { useAuth } from '@/lib/AuthContext';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { CATEGORIES, getStatusColor, getStatusLabel, calculateCommission } from '@/lib/fareUtils';
 import { ArrowLeft, MapPin, Phone, Package, Clock, CheckCircle, Navigation, Star, FileText, CircleDot, AlertTriangle } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link } from '@tanstack/react-router';
 import useDriverLocation from '@/hooks/useDriverLocation';
 import LiveTrackingMap from '@/components/LiveTrackingMap';
 import RatingModal from '@/components/RatingModal';
@@ -17,7 +17,7 @@ const STATUS_STEPS = ['broadcasting', 'accepted', 'picked_up', 'in_transit', 'de
 const STATUS_LABELS = { broadcasting: 'Broadcasting', accepted: 'Accepted', picked_up: 'Picked Up', in_transit: 'In Transit', delivered: 'Delivered' };
 
 export default function BookingDetail() {
-  const { id } = useParams();
+  const { id } = useParams({ strict: false });
   const { user } = useAuth();
   const navigate = useNavigate();
   const [booking, setBooking] = useState(null);
@@ -138,7 +138,7 @@ export default function BookingDetail() {
         <div className="bg-[#0F0F0F] px-4 pt-12 pb-5">
           <div className="flex items-center gap-3 mb-4">
             <button
-              onClick={() => navigate(-1)}
+              onClick={() => window.history.back()}
               className="h-9 w-9 rounded-xl bg-white/10 flex items-center justify-center"
             >
               <ArrowLeft className="h-4 w-4 text-white" />
@@ -358,7 +358,7 @@ export default function BookingDetail() {
       {/* SOS button */}
       {['accepted', 'picked_up', 'in_transit'].includes(booking?.status) && (
         <Link
-          to={`/support?booking_id=${booking.id}&type=emergency`}
+          to="/support" search={{ booking_id: booking.id, type: "emergency" }}
           className="fixed bottom-28 right-4 z-50 flex items-center gap-2 bg-red-600 text-white px-4 py-3 rounded-2xl shadow-xl font-bold text-sm active:scale-95 transition-transform"
         >
           <AlertTriangle className="h-4 w-4" /> SOS

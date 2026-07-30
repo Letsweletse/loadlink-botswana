@@ -14,7 +14,7 @@ import AdminEarningsDashboard from '@/components/AdminEarningsDashboard';
 import DriverLeaderboard from '@/components/DriverLeaderboard';
 import ExpiryAlerts from '@/components/ExpiryAlerts';
 import CommissionPayoutTracker from '@/components/CommissionPayoutTracker';
-import { Link } from 'react-router-dom';
+import { Link } from '@tanstack/react-router';
 
 function StatCard({ icon: Icon, value, label, color, bg }) {
   return (
@@ -222,7 +222,7 @@ export default function AdminDashboard() {
             <TabsContent value="bookings">
               <div className="space-y-3">
                 {bookings.map(b => (
-                  <Link key={b.id} to={`/booking/${b.id}`} className="flex items-center justify-between bg-white border border-[#E5E7EB] rounded-2xl p-4 shadow-sm">
+                  <Link key={b.id} to="/booking/$id" params={{ id: b.id }} className="flex items-center justify-between bg-white border border-[#E5E7EB] rounded-2xl p-4 shadow-sm">
                     <div className="min-w-0 flex-1">
                       <p className="font-semibold text-sm text-[#0F0F0F] truncate">{b.pickup_address} → {b.dropoff_address}</p>
                       <p className="text-xs text-[#6B7280] mt-0.5">P{b.offered_fare || b.base_fare} · {b.client_email}</p>

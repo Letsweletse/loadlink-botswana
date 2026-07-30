@@ -23,6 +23,7 @@ import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AccountRouteImport } from './routes/account'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as BookingIdRouteImport } from './routes/booking.$id'
 
 const IndexRoute = IndexRouteImport.update({ id: '/', path: '/', getParentRoute: () => rootRouteImport } as any)
 const AccountRoute = AccountRouteImport.update({ id: '/account', path: '/account', getParentRoute: () => rootRouteImport } as any)
@@ -43,6 +44,7 @@ const SignupRoute = SignupRouteImport.update({ id: '/signup', path: '/signup', g
 const SupportRoute = SupportRouteImport.update({ id: '/support', path: '/support', getParentRoute: () => rootRouteImport } as any)
 const TrackRoute = TrackRouteImport.update({ id: '/track', path: '/track', getParentRoute: () => rootRouteImport } as any)
 const WalletRoute = WalletRouteImport.update({ id: '/wallet', path: '/wallet', getParentRoute: () => rootRouteImport } as any)
+const BookingIdRoute = BookingIdRouteImport.update({ id: '/booking/$id', path: '/booking/$id', getParentRoute: () => rootRouteImport } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -64,6 +66,7 @@ export interface FileRoutesByFullPath {
   '/support': typeof SupportRoute
   '/track': typeof TrackRoute
   '/wallet': typeof WalletRoute
+  '/booking/$id': typeof BookingIdRoute
 }
 
 export interface FileRoutesByTo extends FileRoutesByFullPath {}
@@ -89,14 +92,15 @@ export interface FileRoutesById {
   '/support': typeof SupportRoute
   '/track': typeof TrackRoute
   '/wallet': typeof WalletRoute
+  '/booking/$id': typeof BookingIdRoute
 }
 
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/account' | '/admin' | '/analytics' | '/client' | '/driver' | '/driver-loads' | '/forgot-password' | '/home' | '/login' | '/my-bookings' | '/my-vehicle' | '/new-booking' | '/profile' | '/register' | '/signup' | '/support' | '/track' | '/wallet'
+  fullPaths: '/' | '/account' | '/admin' | '/analytics' | '/client' | '/driver' | '/driver-loads' | '/forgot-password' | '/home' | '/login' | '/my-bookings' | '/my-vehicle' | '/new-booking' | '/profile' | '/register' | '/signup' | '/support' | '/track' | '/wallet' | '/booking/$id' | '/booking/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/account' | '/admin' | '/analytics' | '/client' | '/driver' | '/driver-loads' | '/forgot-password' | '/home' | '/login' | '/my-bookings' | '/my-vehicle' | '/new-booking' | '/profile' | '/register' | '/signup' | '/support' | '/track' | '/wallet'
-  id: '__root__' | '/' | '/account' | '/admin' | '/analytics' | '/client' | '/driver' | '/driver-loads' | '/forgot-password' | '/home' | '/login' | '/my-bookings' | '/my-vehicle' | '/new-booking' | '/profile' | '/register' | '/signup' | '/support' | '/track' | '/wallet'
+  to: '/' | '/account' | '/admin' | '/analytics' | '/client' | '/driver' | '/driver-loads' | '/forgot-password' | '/home' | '/login' | '/my-bookings' | '/my-vehicle' | '/new-booking' | '/profile' | '/register' | '/signup' | '/support' | '/track' | '/wallet' | '/booking/$id' | '/booking/$id'
+  id: '__root__' | '/' | '/account' | '/admin' | '/analytics' | '/client' | '/driver' | '/driver-loads' | '/forgot-password' | '/home' | '/login' | '/my-bookings' | '/my-vehicle' | '/new-booking' | '/profile' | '/register' | '/signup' | '/support' | '/track' | '/wallet' | '/booking/$id' | '/booking/$id'
   fileRoutesById: FileRoutesById
 }
 
@@ -120,6 +124,7 @@ export interface RootRouteChildren {
   SupportRoute: typeof SupportRoute
   TrackRoute: typeof TrackRoute
   WalletRoute: typeof WalletRoute
+  BookingIdRoute: typeof BookingIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -143,6 +148,7 @@ declare module '@tanstack/react-router' {
     '/support': { id: '/support'; path: '/support'; fullPath: '/support'; preLoaderRoute: typeof SupportRouteImport; parentRoute: typeof rootRouteImport }
     '/track': { id: '/track'; path: '/track'; fullPath: '/track'; preLoaderRoute: typeof TrackRouteImport; parentRoute: typeof rootRouteImport }
     '/wallet': { id: '/wallet'; path: '/wallet'; fullPath: '/wallet'; preLoaderRoute: typeof WalletRouteImport; parentRoute: typeof rootRouteImport }
+    '/booking/$id': { id: '/booking/$id'; path: '/booking/$id'; fullPath: '/booking/$id'; preLoaderRoute: typeof BookingIdRouteImport; parentRoute: typeof rootRouteImport }
   }
 }
 
@@ -166,6 +172,7 @@ const rootRouteChildren: RootRouteChildren = {
   SupportRoute,
   TrackRoute,
   WalletRoute,
+  BookingIdRoute,
 }
 
 export const routeTree = rootRouteImport

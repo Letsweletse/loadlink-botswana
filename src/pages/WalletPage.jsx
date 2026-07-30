@@ -4,7 +4,7 @@ import { base44 } from '@/api/base44Client';
 import { ArrowLeft, TrendingUp, TrendingDown, ArrowDownCircle, Filter, Wallet } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import moment from 'moment';
-import { Link } from 'react-router-dom';
+import { Link } from '@tanstack/react-router';
 import DriverSummary from '@/components/DriverSummary';
 
 const TYPE_CONFIG = {

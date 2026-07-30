@@ -53,7 +53,7 @@ export default function AppFrame({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen flex flex-col bg-[#FFF8EC]">
       {/* Persistent top bar */}
-      <header className="sticky top-0 z-40 bg-[#3D2B0E] text-white">
+      <header className="sticky top-0 z-40 bg-[#3D2B0E] text-white" style={{ paddingTop: "env(safe-area-inset-top)" }}>
         <div className="max-w-lg mx-auto flex items-center justify-between px-4 h-14">
           <Link to="/" className="flex items-center gap-2 shrink-0">
             <img src="/brand/logo-transparent.png" alt="Van-Link" className="h-8 w-8 object-contain" />
@@ -105,11 +105,11 @@ export default function AppFrame({ children }: { children: React.ReactNode }) {
       </header>
 
       {/* Page content */}
-      <main className="flex-1 max-w-lg w-full mx-auto pb-20">{children}</main>
+      <main className="flex-1 max-w-lg w-full mx-auto pb-24">{children}</main>
 
       {/* Persistent bottom tab bar — only when signed in */}
       {user && (
-        <nav className="fixed bottom-0 inset-x-0 z-40 bg-white border-t border-[#E8D5B7]">
+        <nav className="fixed bottom-0 inset-x-0 z-40 bg-white border-t border-[#E8D5B7]" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
           <div className="max-w-lg mx-auto grid grid-cols-4">
             {tabs.map(t => {
               const active = path === t.to;

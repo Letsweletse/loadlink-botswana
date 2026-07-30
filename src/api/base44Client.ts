@@ -71,6 +71,16 @@ function loadIn(p: any) {
   return out;
 }
 
+function vehicleOut(r: any) {
+  if (!r) return r;
+  return { ...r, category: DB_TO_CAT[r.category] || r.category };
+}
+function vehicleIn(p: any) {
+  const out: any = { ...p };
+  if (p.category) out.category = CAT_TO_DB[p.category] || p.category;
+  return out;
+}
+
 function orderParts(order = "-created_at") {
   let col = order.startsWith("-") ? order.slice(1) : order;
   const asc = !order.startsWith("-");
@@ -149,17 +159,42 @@ export const base44 = {
       },
     },
     Vehicle: {
-      ...entity("trucks"),
+      async filter(filters: Record<string, any> = {}, order = "-created_at", limit = 50) {
+        if (!supabase) return [];
+        let q = supabase.from("trucks").select("*");
+        for (const [k, v] of Object.entries(filters)) {
+          if (v === undefined || v === null) continue;
+          if (k === "category") q = q.eq("category", CAT_TO_DB[String(v)] || v);
+          else q = q.eq(k, v);
+        }
+        const { col, asc } = orderParts(order === "-created_date" ? "-created_at" : order);
+        const { data, error } = await q.order(col, { ascending: asc }).limit(limit);
+        if (error) { console.warn("[trucks] filter", error.message); return []; }
+        return (data ?? []).map(vehicleOut);
+      },
+      async list(order = "-created_at", limit = 50) { return this.filter({}, order, limit); },
+      async get(id: string) {
+        if (!supabase) return null;
+        const { data, error } = await supabase.from("trucks").select("*").eq("id", id).maybeSingle();
+        if (error) { console.warn("[trucks] get", error.message); return null; }
+        return data ? vehicleOut(data) : null;
+      },
       async create(payload: any) {
         if (!supabase) throw new Error("Service unavailable");
-        const row = { ...payload };
+        const row = vehicleIn(payload);
         if (!row.driver_email) {
           const { data: au } = await supabase.auth.getUser();
           row.driver_email = au.user?.email ?? null;
         }
         const { data, error } = await supabase.from("trucks").insert(row).select().single();
         if (error) throw new Error(error.message);
-        return data;
+        return vehicleOut(data);
+      },
+      async update(id: string, payload: any) {
+        if (!supabase) throw new Error("Service unavailable");
+        const { data, error } = await supabase.from("trucks").update(vehicleIn(payload)).eq("id", id).select().single();
+        if (error) throw new Error(error.message);
+        return vehicleOut(data);
       },
     },
     Profile: entity("profiles"),

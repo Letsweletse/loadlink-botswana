@@ -197,6 +197,7 @@ export default function DriverLoads() {
           notification={pendingNotification}
           onDismiss={dismissNotification}
           driverEmail={user.email}
+          onAccept={() => { dismissNotification(); loadData(); }}
         />
 
         {/* Saved search alerts */}

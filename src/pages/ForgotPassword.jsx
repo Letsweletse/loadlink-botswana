@@ -27,9 +27,9 @@ export default function ForgotPassword() {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F9FAFB]">
-      <div className="bg-[#0F0F0F] px-5 pt-12 pb-10">
+      <div className="bg-[#3D2B0E] px-5 pt-12 pb-10">
         <div className="flex items-center gap-3 mb-6">
-          <div className="h-10 w-10 rounded-xl bg-[#F97316] flex items-center justify-center">
+          <div className="h-10 w-10 rounded-xl bg-[#C9A05A] flex items-center justify-center">
             <Truck className="h-5 w-5 text-white" />
           </div>
           <p className="font-extrabold text-white tracking-tight text-lg leading-none">Van-Link</p>
@@ -44,13 +44,13 @@ export default function ForgotPassword() {
             <div className="h-14 w-14 rounded-2xl bg-[#EFF6FF] flex items-center justify-center mx-auto mb-4">
               <MailCheck className="h-7 w-7 text-[#2563EB]" />
             </div>
-            <p className="font-extrabold text-[#0F0F0F] text-lg">Check your email</p>
+            <p className="font-extrabold text-[#3D2B0E] text-lg">Check your email</p>
             <p className="text-sm text-[#6B7280] mt-2 leading-6">
-              If an account exists for <span className="font-semibold text-[#0F0F0F]">{email}</span>,
+              If an account exists for <span className="font-semibold text-[#3D2B0E]">{email}</span>,
               a reset link is on its way.
             </p>
             <Link to="/login">
-              <Button className="mt-6 w-full h-12 rounded-xl bg-[#F97316] hover:bg-[#EA6A0A] text-white font-bold">
+              <Button className="mt-6 w-full h-12 rounded-xl bg-[#C9A05A] hover:bg-[#B08A45] text-white font-bold">
                 Back to sign in
               </Button>
             </Link>
@@ -62,16 +62,16 @@ export default function ForgotPassword() {
             )}
             <div>
               <Label className="text-xs font-semibold uppercase tracking-wide text-[#6B7280]">Email</Label>
-              <Input className="mt-1.5 h-12 rounded-xl border-[#E5E7EB] bg-white focus-visible:ring-[#F97316]"
+              <Input className="mt-1.5 h-12 rounded-xl border-[#E5E7EB] bg-white focus-visible:ring-[#C9A05A]"
                 type="email" placeholder="you@example.com" value={email}
                 onChange={e => setEmail(e.target.value)} required />
             </div>
             <Button type="submit" disabled={loading}
-              className="w-full h-12 rounded-xl bg-[#F97316] hover:bg-[#EA6A0A] text-white font-bold">
+              className="w-full h-12 rounded-xl bg-[#C9A05A] hover:bg-[#B08A45] text-white font-bold">
               {loading ? 'Sending…' : 'Send reset link'}
             </Button>
             <p className="text-center text-sm text-[#6B7280]">
-              <Link to="/login" className="text-[#F97316] font-semibold hover:underline">Back to sign in</Link>
+              <Link to="/login" className="text-[#C9A05A] font-semibold hover:underline">Back to sign in</Link>
             </p>
           </form>
         )}

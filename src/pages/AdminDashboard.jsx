@@ -22,7 +22,7 @@ function StatCard({ icon: Icon, value, label, color, bg }) {
       <div className={`h-9 w-9 rounded-xl ${bg} flex items-center justify-center mb-2`}>
         <Icon className={`h-4 w-4 ${color}`} />
       </div>
-      <p className="text-2xl font-extrabold text-[#0F0F0F]">{value}</p>
+      <p className="text-2xl font-extrabold text-[#3D2B0E]">{value}</p>
       <p className="text-xs text-[#6B7280] mt-0.5">{label}</p>
     </div>
   );
@@ -58,7 +58,7 @@ export default function AdminDashboard() {
 
   if (loading) return (
     <div className="flex items-center justify-center min-h-screen bg-[#F9FAFB]">
-      <div className="w-5 h-5 border-2 border-[#F97316]/30 border-t-[#F97316] rounded-full animate-spin" />
+      <div className="w-5 h-5 border-2 border-[#C9A05A]/30 border-t-[#C9A05A] rounded-full animate-spin" />
     </div>
   );
 
@@ -67,7 +67,7 @@ export default function AdminDashboard() {
       <div className="max-w-lg mx-auto bg-[#F9FAFB] min-h-screen">
 
         {/* Header */}
-        <div className="bg-[#0F0F0F] px-4 pt-12 pb-6">
+        <div className="bg-[#3D2B0E] px-4 pt-12 pb-6">
           <div className="flex items-center gap-3 mb-5">
             <Link to="/" className="h-9 w-9 rounded-xl bg-white/10 flex items-center justify-center">
               <ArrowLeft className="h-4 w-4 text-white" />
@@ -84,12 +84,12 @@ export default function AdminDashboard() {
               <p className="text-xl font-extrabold text-white">{vehicles.length}</p>
               <p className="text-[10px] text-white/50 mt-0.5">Vehicles</p>
             </div>
-            <div className="bg-[#F97316]/20 rounded-xl p-3 text-center">
+            <div className="bg-[#C9A05A]/20 rounded-xl p-3 text-center">
               <p className="text-xl font-extrabold text-white">{activeLoads}</p>
               <p className="text-[10px] text-white/50 mt-0.5">Active Loads</p>
             </div>
             <div className="bg-white/10 rounded-xl p-3 text-center">
-              <p className="text-xl font-extrabold text-[#F97316]">P{totalRevenue}</p>
+              <p className="text-xl font-extrabold text-[#C9A05A]">P{totalRevenue}</p>
               <p className="text-[10px] text-white/50 mt-0.5">Commission</p>
             </div>
           </div>
@@ -105,7 +105,7 @@ export default function AdminDashboard() {
                   <Clock className="h-4 w-4 text-[#D97706]" />
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-[#0F0F0F]">Driver Registrations</p>
+                  <p className="text-sm font-bold text-[#3D2B0E]">Driver Registrations</p>
                   <p className="text-xs text-[#6B7280]">{pending} pending approval</p>
                 </div>
               </div>
@@ -126,7 +126,7 @@ export default function AdminDashboard() {
                 <TabsTrigger
                   key={value}
                   value={value}
-                  className="flex flex-col items-center gap-0.5 py-2 rounded-lg text-[10px] font-semibold data-[state=active]:bg-[#F97316] data-[state=active]:text-white data-[state=active]:shadow-none"
+                  className="flex flex-col items-center gap-0.5 py-2 rounded-lg text-[10px] font-semibold data-[state=active]:bg-[#C9A05A] data-[state=active]:text-white data-[state=active]:shadow-none"
                 >
                   <Icon className="h-3.5 w-3.5" />
                   {label}
@@ -172,7 +172,7 @@ export default function AdminDashboard() {
                                 {cat?.icon || '🚚'}
                               </div>
                               <div>
-                                <p className="font-bold text-sm text-[#0F0F0F]">{v.number_plate}</p>
+                                <p className="font-bold text-sm text-[#3D2B0E]">{v.number_plate}</p>
                                 <p className="text-xs text-[#6B7280]">{v.driver_email}</p>
                               </div>
                             </div>
@@ -185,7 +185,7 @@ export default function AdminDashboard() {
                             </span>
                           </div>
                           <div className="text-xs text-[#6B7280] mb-3">
-                            Permit: {v.ba_permit_number || '—'} · Balance: <span className="font-semibold text-[#F97316]">P{v.deposit_balance || 0}</span>
+                            Permit: {v.ba_permit_number || '—'} · Balance: <span className="font-semibold text-[#C9A05A]">P{v.deposit_balance || 0}</span>
                           </div>
                           <div className="flex gap-2">
                             <Button size="sm" variant="outline" className="flex-1 h-9 rounded-xl border-[#E5E7EB] text-xs font-semibold" onClick={() => setSelectedVehicle(v)}>
@@ -224,7 +224,7 @@ export default function AdminDashboard() {
                 {bookings.map(b => (
                   <Link key={b.id} to="/booking/$id" params={{ id: b.id }} className="flex items-center justify-between bg-white border border-[#E5E7EB] rounded-2xl p-4 shadow-sm">
                     <div className="min-w-0 flex-1">
-                      <p className="font-semibold text-sm text-[#0F0F0F] truncate">{b.pickup_address} → {b.dropoff_address}</p>
+                      <p className="font-semibold text-sm text-[#3D2B0E] truncate">{b.pickup_address} → {b.dropoff_address}</p>
                       <p className="text-xs text-[#6B7280] mt-0.5">P{b.offered_fare || b.base_fare} · {b.client_email}</p>
                     </div>
                     <span className={`ml-3 text-[10px] font-bold px-2.5 py-1 rounded-full shrink-0 ${getStatusColor(b.status)}`}>

@@ -140,7 +140,7 @@ export default function DriverLoads() {
     <div className="max-w-lg mx-auto bg-[#F9FAFB] min-h-screen">
 
       {/* ── Signature element: Orange status bar ── */}
-      <div className={`px-4 pt-12 pb-4 ${isOnline ? 'bg-[#F97316]' : 'bg-[#0F0F0F]'} transition-colors duration-300`}>
+      <div className={`px-4 pt-12 pb-4 ${isOnline ? 'bg-[#C9A05A]' : 'bg-[#3D2B0E]'} transition-colors duration-300`}>
         <div className="flex items-center justify-between">
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-widest opacity-60 text-white mb-1">Load Board</p>
@@ -157,7 +157,7 @@ export default function DriverLoads() {
             className={`h-14 w-14 rounded-2xl flex items-center justify-center transition-all disabled:opacity-40 ${
               isOnline
                 ? 'bg-white/20 hover:bg-white/30'
-                : 'bg-[#F97316] hover:bg-[#EA6A0A]'
+                : 'bg-[#C9A05A] hover:bg-[#B08A45]'
             }`}
           >
             {isOnline ? <Wifi className="h-6 w-6 text-white" /> : <WifiOff className="h-6 w-6 text-white" />}
@@ -174,7 +174,7 @@ export default function DriverLoads() {
               <MapPin className={`h-4 w-4 ${tracking ? 'text-[#16A34A]' : 'text-[#9CA3AF]'}`} />
             </div>
             <div>
-              <p className="text-sm font-semibold text-[#0F0F0F]">{tracking ? 'Broadcasting Location' : 'Share GPS'}</p>
+              <p className="text-sm font-semibold text-[#3D2B0E]">{tracking ? 'Broadcasting Location' : 'Share GPS'}</p>
               <p className="text-xs text-[#6B7280]">{gpsError || (tracking ? 'Clients can see you live' : 'Start to receive load offers')}</p>
             </div>
           </div>
@@ -203,7 +203,7 @@ export default function DriverLoads() {
         {matchAlerts.map(({ search, count }) => (
           <div key={search.id} className="flex items-center gap-2 bg-[#FFFBEB] border border-[#D97706]/20 rounded-2xl px-3.5 py-3 mb-3">
             <Bell className="h-4 w-4 text-[#D97706] shrink-0" />
-            <p className="text-sm text-[#0F0F0F] flex-1">
+            <p className="text-sm text-[#3D2B0E] flex-1">
               <span className="font-semibold">{search.name}:</span>{' '}
               <span className="text-[#6B7280]">{count} matching load{count > 1 ? 's' : ''} now</span>
             </p>
@@ -215,7 +215,7 @@ export default function DriverLoads() {
                 maxDistanceKm: search.max_distance_km || 0,
                 sortBy: search.sort_by || 'newest',
               })}
-              className="text-xs font-bold text-[#F97316]"
+              className="text-xs font-bold text-[#C9A05A]"
             >
               View
             </button>
@@ -224,21 +224,21 @@ export default function DriverLoads() {
 
         {loading ? (
           <div className="flex justify-center py-12">
-            <div className="w-5 h-5 border-2 border-[#F97316]/30 border-t-[#F97316] rounded-full animate-spin" />
+            <div className="w-5 h-5 border-2 border-[#C9A05A]/30 border-t-[#C9A05A] rounded-full animate-spin" />
           </div>
         ) : (
           <Tabs defaultValue={activeLoad ? 'enroute' : 'available'}>
             <TabsList className="w-full mb-4 bg-white border border-[#E5E7EB] rounded-xl p-1 h-auto">
               <TabsTrigger
                 value="available"
-                className="flex-1 text-xs rounded-lg data-[state=active]:bg-[#F97316] data-[state=active]:text-white data-[state=active]:shadow-none font-semibold py-2"
+                className="flex-1 text-xs rounded-lg data-[state=active]:bg-[#C9A05A] data-[state=active]:text-white data-[state=active]:shadow-none font-semibold py-2"
               >
                 Available{filtered.length !== available.length ? ` (${filtered.length}/${available.length})` : ` (${available.length})`}
               </TabsTrigger>
               {activeLoad && (
                 <TabsTrigger
                   value="enroute"
-                  className="flex-1 text-xs rounded-lg data-[state=active]:bg-[#F97316] data-[state=active]:text-white font-semibold py-2"
+                  className="flex-1 text-xs rounded-lg data-[state=active]:bg-[#C9A05A] data-[state=active]:text-white font-semibold py-2"
                 >
                   <Navigation className="h-3 w-3 mr-1" />
                   En Route ({enRouteLoads.length})
@@ -246,13 +246,13 @@ export default function DriverLoads() {
               )}
               <TabsTrigger
                 value="my"
-                className="flex-1 text-xs rounded-lg data-[state=active]:bg-[#F97316] data-[state=active]:text-white font-semibold py-2"
+                className="flex-1 text-xs rounded-lg data-[state=active]:bg-[#C9A05A] data-[state=active]:text-white font-semibold py-2"
               >
                 My Loads ({myLoads.length})
               </TabsTrigger>
               <TabsTrigger
                 value="schedule"
-                className="flex-1 text-xs rounded-lg data-[state=active]:bg-[#F97316] data-[state=active]:text-white font-semibold py-2"
+                className="flex-1 text-xs rounded-lg data-[state=active]:bg-[#C9A05A] data-[state=active]:text-white font-semibold py-2"
               >
                 <CalendarDays className="h-3 w-3" />
               </TabsTrigger>
@@ -280,7 +280,7 @@ export default function DriverLoads() {
                 <div className="flex items-center gap-3 bg-[#F0FDF4] border border-[#16A34A]/20 rounded-2xl px-4 py-3 mb-4">
                   <Navigation className="h-4 w-4 text-[#16A34A] shrink-0 animate-pulse" />
                   <div>
-                    <p className="font-semibold text-[#0F0F0F] text-xs">En Route Mode</p>
+                    <p className="font-semibold text-[#3D2B0E] text-xs">En Route Mode</p>
                     <p className="text-[#6B7280] text-xs">Loads within 30 km of your location</p>
                   </div>
                 </div>

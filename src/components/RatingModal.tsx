@@ -27,20 +27,20 @@ export default function RatingModal({ open = true, onClose, booking }: any) {
   return (
     <div className="fixed inset-0 z-[999] bg-black/50 flex items-end" onClick={onClose}>
       <div className="bg-white w-full rounded-t-3xl p-6" onClick={e => e.stopPropagation()}>
-        <p className="font-extrabold text-[#0F0F0F] text-lg mb-1">Rate your trip</p>
+        <p className="font-extrabold text-[#3D2B0E] text-lg mb-1">Rate your trip</p>
         <p className="text-sm text-[#6B7280] mb-4">{booking?.driver || "Your driver"}</p>
         <div className="flex gap-2 mb-4">
           {[1,2,3,4,5].map(n => (
             <button key={n} onClick={() => setStars(n)}>
-              <Star className={`h-9 w-9 ${n <= stars ? "fill-[#F97316] text-[#F97316]" : "text-[#E5E7EB]"}`} />
+              <Star className={`h-9 w-9 ${n <= stars ? "fill-[#C9A05A] text-[#C9A05A]" : "text-[#E5E7EB]"}`} />
             </button>
           ))}
         </div>
         <textarea value={comment} onChange={e => setComment(e.target.value)}
           placeholder="Add a comment (optional)" rows={3}
-          className="w-full rounded-xl border border-[#E5E7EB] p-3 text-sm outline-none focus:border-[#F97316] mb-4" />
+          className="w-full rounded-xl border border-[#E5E7EB] p-3 text-sm outline-none focus:border-[#C9A05A] mb-4" />
         <button onClick={submit} disabled={busy}
-          className="w-full h-12 rounded-xl bg-[#F97316] text-white font-bold disabled:opacity-50">
+          className="w-full h-12 rounded-xl bg-[#C9A05A] text-white font-bold disabled:opacity-50">
           {busy ? "Submitting…" : "Submit rating"}
         </button>
       </div>

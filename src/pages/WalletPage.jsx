@@ -23,7 +23,7 @@ function TransactionItem({ tx }) {
         <Icon className={`h-4 w-4 ${cfg.color}`} />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-[#0F0F0F]">{cfg.label}</p>
+        <p className="text-sm font-semibold text-[#3D2B0E]">{cfg.label}</p>
         {tx.description && <p className="text-xs text-[#6B7280] truncate">{tx.description}</p>}
         <p className="text-xs text-[#9CA3AF]">
           {new Date(tx.created_date).toLocaleDateString('en-BW', { day: 'numeric', month: 'short', year: 'numeric' })}
@@ -77,7 +77,7 @@ export default function WalletPage() {
     <div className="max-w-lg mx-auto bg-[#F9FAFB] min-h-screen">
 
       {/* Header with balance */}
-      <div className="bg-[#0F0F0F] px-4 pt-12 pb-6">
+      <div className="bg-[#3D2B0E] px-4 pt-12 pb-6">
         <div className="flex items-center gap-3 mb-5">
           <Link to="/" className="h-9 w-9 rounded-xl bg-white/10 flex items-center justify-center">
             <ArrowLeft className="h-4 w-4 text-white" />
@@ -89,7 +89,7 @@ export default function WalletPage() {
         </div>
 
         {/* Balance */}
-        <div className="bg-[#F97316] rounded-2xl p-5 relative overflow-hidden">
+        <div className="bg-[#C9A05A] rounded-2xl p-5 relative overflow-hidden">
           <div className="absolute -right-4 -top-4 opacity-10">
             <Wallet className="h-24 w-24" />
           </div>
@@ -141,7 +141,7 @@ export default function WalletPage() {
                 <XAxis dataKey="week" tick={{ fontSize: 10, fill: '#9CA3AF' }} tickLine={false} />
                 <YAxis tick={{ fontSize: 10, fill: '#9CA3AF' }} tickLine={false} />
                 <Tooltip contentStyle={{ fontSize: 12, borderRadius: 12, border: '1px solid #E5E7EB' }} formatter={v => `P${v}`} />
-                <Bar dataKey="earned" fill="#F97316" radius={[6, 6, 0, 0]} name="Earnings" />
+                <Bar dataKey="earned" fill="#C9A05A" radius={[6, 6, 0, 0]} name="Earnings" />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -161,7 +161,7 @@ export default function WalletPage() {
               onClick={() => setFilterType(type)}
               className={`text-xs px-3 py-1.5 rounded-full whitespace-nowrap font-semibold transition-all ${
                 filterType === type
-                  ? 'bg-[#F97316] text-white shadow-md shadow-[#F97316]/20'
+                  ? 'bg-[#C9A05A] text-white shadow-md shadow-[#C9A05A]/20'
                   : 'bg-white border border-[#E5E7EB] text-[#6B7280]'
               }`}
             >
@@ -173,14 +173,14 @@ export default function WalletPage() {
         {/* Transactions */}
         {loading ? (
           <div className="flex justify-center py-10">
-            <div className="w-5 h-5 border-2 border-[#F97316]/30 border-t-[#F97316] rounded-full animate-spin" />
+            <div className="w-5 h-5 border-2 border-[#C9A05A]/30 border-t-[#C9A05A] rounded-full animate-spin" />
           </div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-12">
             <div className="h-14 w-14 rounded-2xl bg-white border border-[#E5E7EB] flex items-center justify-center mx-auto mb-3 shadow-sm">
               <Wallet className="h-6 w-6 text-[#9CA3AF]" />
             </div>
-            <p className="font-bold text-[#0F0F0F] mb-1">No transactions yet</p>
+            <p className="font-bold text-[#3D2B0E] mb-1">No transactions yet</p>
             <p className="text-xs text-[#6B7280]">Transactions will appear here.</p>
           </div>
         ) : (

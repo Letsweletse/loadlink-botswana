@@ -12,10 +12,10 @@ export default function AdminDriverFinance() {
       {trucks.map(t => (
         <div key={t.id} className="bg-white border border-[#E5E7EB] rounded-2xl p-4 flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <p className="font-bold text-[#0F0F0F] truncate">{t.name} · {t.plate}</p>
+            <p className="font-bold text-[#3D2B0E] truncate">{t.name} · {t.plate}</p>
             <p className="text-xs text-[#6B7280]">{t.phone} · {t.category} · {t.status}</p>
           </div>
-          <p className="font-extrabold text-[#0F0F0F] tabular-nums shrink-0">P{Number(t.wallet || 0).toFixed(2)}</p>
+          <p className="font-extrabold text-[#3D2B0E] tabular-nums shrink-0">P{Number(t.wallet || 0).toFixed(2)}</p>
         </div>
       ))}
     </div>

@@ -19,7 +19,7 @@ export default function CommissionPayoutTracker() {
       {reqs.map(r => (
         <div key={r.id} className="bg-white border border-[#E5E7EB] rounded-2xl p-4 flex items-center justify-between gap-3">
           <div>
-            <p className="font-extrabold text-[#0F0F0F] tabular-nums">P{Number(r.amount).toFixed(2)}</p>
+            <p className="font-extrabold text-[#3D2B0E] tabular-nums">P{Number(r.amount).toFixed(2)}</p>
             <p className="text-xs text-[#6B7280]">{r.phone} · {r.provider}</p>
           </div>
           {r.status === "pending" ? (

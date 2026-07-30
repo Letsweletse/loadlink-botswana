@@ -48,17 +48,17 @@ export default function Profile() {
     <div className="max-w-lg mx-auto bg-[#F9FAFB] min-h-screen">
 
       {/* Header */}
-      <div className="bg-[#0F0F0F] px-5 pt-12 pb-8">
+      <div className="bg-[#3D2B0E] px-5 pt-12 pb-8">
         <p className="text-[10px] font-semibold uppercase tracking-widest text-white/40 mb-4">Account</p>
         <div className="flex items-center gap-4">
-          <div className="h-16 w-16 rounded-2xl bg-[#F97316] flex items-center justify-center shrink-0">
+          <div className="h-16 w-16 rounded-2xl bg-[#C9A05A] flex items-center justify-center shrink-0">
             <span className="text-xl font-extrabold text-white">{initials}</span>
           </div>
           <div>
             <p className="font-extrabold text-white text-xl tracking-tight">{user?.full_name || 'Your Profile'}</p>
             <p className="text-sm text-white/50 mt-0.5">{user?.email}</p>
             {role && (
-              <span className="mt-1.5 inline-block text-[10px] font-bold uppercase tracking-wider bg-[#F97316]/20 text-[#F97316] px-2.5 py-0.5 rounded-full">
+              <span className="mt-1.5 inline-block text-[10px] font-bold uppercase tracking-wider bg-[#C9A05A]/20 text-[#C9A05A] px-2.5 py-0.5 rounded-full">
                 {role}
               </span>
             )}
@@ -79,7 +79,7 @@ export default function Profile() {
                 <User className="h-3 w-3" /> I am a
               </Label>
               <Select value={role} onValueChange={setRole}>
-                <SelectTrigger className="mt-1.5 h-11 rounded-xl border-[#E5E7EB] bg-[#F9FAFB] text-[#0F0F0F]">
+                <SelectTrigger className="mt-1.5 h-11 rounded-xl border-[#E5E7EB] bg-[#F9FAFB] text-[#3D2B0E]">
                   <SelectValue placeholder="Select your role" />
                 </SelectTrigger>
                 <SelectContent>
@@ -93,7 +93,7 @@ export default function Profile() {
                 <Phone className="h-3 w-3" /> WhatsApp / Phone
               </Label>
               <Input
-                className="mt-1.5 h-11 rounded-xl border-[#E5E7EB] bg-[#F9FAFB] text-[#0F0F0F]"
+                className="mt-1.5 h-11 rounded-xl border-[#E5E7EB] bg-[#F9FAFB] text-[#3D2B0E]"
                 placeholder="+267 7X XXX XXX"
                 value={phone}
                 onChange={e => setPhone(e.target.value)}
@@ -104,7 +104,7 @@ export default function Profile() {
                 <CreditCard className="h-3 w-3" /> ID / Omang Number
               </Label>
               <Input
-                className="mt-1.5 h-11 rounded-xl border-[#E5E7EB] bg-[#F9FAFB] text-[#0F0F0F]"
+                className="mt-1.5 h-11 rounded-xl border-[#E5E7EB] bg-[#F9FAFB] text-[#3D2B0E]"
                 placeholder="National ID number"
                 value={idNumber}
                 onChange={e => setIdNumber(e.target.value)}
@@ -128,7 +128,7 @@ export default function Profile() {
 
         <Button
           onClick={handleSave}
-          className="w-full h-12 rounded-xl bg-[#F97316] hover:bg-[#EA6A0A] text-white font-bold shadow-md shadow-[#F97316]/20"
+          className="w-full h-12 rounded-xl bg-[#C9A05A] hover:bg-[#B08A45] text-white font-bold shadow-md shadow-[#C9A05A]/20"
           disabled={saving}
         >
           {saving ? 'Saving…' : saved ? '✓ Saved' : 'Save Changes'}

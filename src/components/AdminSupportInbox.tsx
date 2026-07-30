@@ -18,7 +18,7 @@ export default function AdminSupportInbox() {
         <div key={t.id} className="bg-white border border-[#E5E7EB] rounded-2xl p-4">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="font-bold text-[#0F0F0F] truncate">{t.subject || "(no subject)"}</p>
+              <p className="font-bold text-[#3D2B0E] truncate">{t.subject || "(no subject)"}</p>
               <p className="text-sm text-[#6B7280] mt-0.5 line-clamp-2">{t.message}</p>
               <p className="text-[11px] text-[#9CA3AF] mt-1">{t.email || t.phone || "anonymous"}</p>
             </div>

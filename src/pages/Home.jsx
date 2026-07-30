@@ -46,15 +46,15 @@ export default function Home() {
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3, ease: 'easeOut' }}
-        className="relative bg-[#0F0F0F] text-white px-5 pt-6 pb-10 overflow-hidden"
+        className="relative bg-[#3D2B0E] text-white px-5 pt-6 pb-10 overflow-hidden"
       >
         {/* subtle orange glow */}
-        <div className="absolute -top-10 -right-10 h-40 w-40 rounded-full bg-[#F97316]/20 blur-2xl pointer-events-none" />
-        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#F97316]/40 to-transparent" />
+        <div className="absolute -top-10 -right-10 h-40 w-40 rounded-full bg-[#C9A05A]/20 blur-2xl pointer-events-none" />
+        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#C9A05A]/40 to-transparent" />
 
         <div className="relative">
           <div className="flex items-center gap-2 mb-3">
-            <div className="h-8 w-8 rounded-lg bg-[#F97316] flex items-center justify-center">
+            <div className="h-8 w-8 rounded-lg bg-[#C9A05A] flex items-center justify-center">
               <span className="text-sm font-extrabold text-white">VL</span>
             </div>
             <span className="text-xs font-semibold text-white/50 uppercase tracking-widest">Van-Link</span>
@@ -80,10 +80,10 @@ export default function Home() {
             animate={{ opacity: 1, y: 0 }}
             className="bg-white border border-[#E5E7EB] rounded-2xl p-4 shadow-sm"
           >
-            <p className="font-bold text-[#0F0F0F] mb-1">Complete your profile</p>
+            <p className="font-bold text-[#3D2B0E] mb-1">Complete your profile</p>
             <p className="text-sm text-[#6B7280] mb-3">Are you transporting goods or offering transport?</p>
             <Link to="/profile">
-              <Button size="sm" className="bg-[#F97316] hover:bg-[#EA6A0A] text-white rounded-xl">
+              <Button size="sm" className="bg-[#C9A05A] hover:bg-[#B08A45] text-white rounded-xl">
                 Set Up Profile <ArrowRight className="h-4 w-4 ml-1" />
               </Button>
             </Link>
@@ -100,7 +100,7 @@ export default function Home() {
               transition={{ delay: 0.08 }}
             >
               <Link to="/new-booking">
-                <div className="bg-[#F97316] text-white rounded-2xl p-5 relative overflow-hidden shadow-lg shadow-[#F97316]/20">
+                <div className="bg-[#C9A05A] text-white rounded-2xl p-5 relative overflow-hidden shadow-lg shadow-[#C9A05A]/20">
                   <div className="absolute -right-4 -bottom-4 opacity-10">
                     <Package className="h-28 w-28" />
                   </div>
@@ -139,10 +139,10 @@ export default function Home() {
                             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent" />
                           </>
                         ) : (
-                          <div className="absolute inset-0 bg-gradient-to-br from-[#F97316] to-[#EA6A0A]" />
+                          <div className="absolute inset-0 bg-gradient-to-br from-[#C9A05A] to-[#B08A45]" />
                         )}
                         {cat.special && (
-                          <span className="absolute top-2 left-2 text-[9px] bg-[#F97316] text-white px-2 py-0.5 rounded-full font-bold z-10">
+                          <span className="absolute top-2 left-2 text-[9px] bg-[#C9A05A] text-white px-2 py-0.5 rounded-full font-bold z-10">
                             POPULAR
                           </span>
                         )}
@@ -179,7 +179,7 @@ export default function Home() {
                 <div className="absolute inset-0 p-4 flex items-center">
                   <div>
                     <div className="flex items-center gap-2 mb-1">
-                      <Shield className="h-4 w-4 text-[#F97316]" />
+                      <Shield className="h-4 w-4 text-[#C9A05A]" />
                       <span className="text-xs font-semibold text-white/80 uppercase tracking-wide">Driver Hub</span>
                     </div>
                     <p className="font-extrabold text-white text-lg tracking-tight">Your Dashboard</p>
@@ -193,7 +193,7 @@ export default function Home() {
                   </Button>
                 </Link>
                 <Link to="/driver-loads" className="flex-1">
-                  <Button size="sm" className="w-full rounded-xl bg-[#F97316] hover:bg-[#EA6A0A] text-white font-semibold">
+                  <Button size="sm" className="w-full rounded-xl bg-[#C9A05A] hover:bg-[#B08A45] text-white font-semibold">
                     View Loads
                   </Button>
                 </Link>
@@ -227,7 +227,7 @@ export default function Home() {
 
         {loading && (
           <div className="flex justify-center py-8">
-            <div className="w-5 h-5 border-2 border-[#F97316]/30 border-t-[#F97316] rounded-full animate-spin" />
+            <div className="w-5 h-5 border-2 border-[#C9A05A]/30 border-t-[#C9A05A] rounded-full animate-spin" />
           </div>
         )}
       </div>

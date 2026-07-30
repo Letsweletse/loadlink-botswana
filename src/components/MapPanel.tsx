@@ -22,9 +22,9 @@ export default function MapPanel({ title = "Route", points = [], height = 200 }:
         <div className="p-3 space-y-2 border-t border-[#E5E7EB]">
           {points.map((p, i) => (
             <div key={i} className="flex items-start gap-2">
-              <MapPin className="h-4 w-4 shrink-0 mt-0.5" style={{ color: p.color || "#F97316" }} />
+              <MapPin className="h-4 w-4 shrink-0 mt-0.5" style={{ color: p.color || "#C9A05A" }} />
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-[#0F0F0F] truncate">{p.label}</p>
+                <p className="text-sm font-semibold text-[#3D2B0E] truncate">{p.label}</p>
                 {p.sub && <p className="text-xs text-[#6B7280]">{p.sub}</p>}
               </div>
             </div>

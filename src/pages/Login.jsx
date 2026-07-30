@@ -28,9 +28,9 @@ export default function Login() {
   return (
     <div className="min-h-screen flex flex-col bg-[#F9FAFB]">
       {/* Top brand strip */}
-      <div className="bg-[#0F0F0F] px-5 pt-12 pb-10">
+      <div className="bg-[#3D2B0E] px-5 pt-12 pb-10">
         <div className="flex items-center gap-3 mb-6">
-          <div className="h-10 w-10 rounded-xl bg-[#F97316] flex items-center justify-center">
+          <div className="h-10 w-10 rounded-xl bg-[#C9A05A] flex items-center justify-center">
             <Truck className="h-5 w-5 text-white" />
           </div>
           <div>
@@ -53,7 +53,7 @@ export default function Login() {
           <div>
             <Label className="text-xs font-semibold uppercase tracking-wide text-[#6B7280]">Email</Label>
             <Input
-              className="mt-1.5 h-12 rounded-xl border-[#E5E7EB] bg-white text-[#0F0F0F] placeholder:text-[#9CA3AF] focus-visible:ring-[#F97316]"
+              className="mt-1.5 h-12 rounded-xl border-[#E5E7EB] bg-white text-[#3D2B0E] placeholder:text-[#9CA3AF] focus-visible:ring-[#C9A05A]"
               type="email"
               placeholder="you@example.com"
               value={email}
@@ -64,12 +64,12 @@ export default function Login() {
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <Label className="text-xs font-semibold uppercase tracking-wide text-[#6B7280]">Password</Label>
-              <Link to="/forgot-password" className="text-xs text-[#F97316] font-medium hover:underline">
+              <Link to="/forgot-password" className="text-xs text-[#C9A05A] font-medium hover:underline">
                 Forgot password?
               </Link>
             </div>
             <Input
-              className="h-12 rounded-xl border-[#E5E7EB] bg-white text-[#0F0F0F] focus-visible:ring-[#F97316]"
+              className="h-12 rounded-xl border-[#E5E7EB] bg-white text-[#3D2B0E] focus-visible:ring-[#C9A05A]"
               type="password"
               placeholder="••••••••"
               value={password}
@@ -79,7 +79,7 @@ export default function Login() {
           </div>
           <Button
             type="submit"
-            className="w-full h-12 rounded-xl bg-[#F97316] hover:bg-[#EA6A0A] text-white font-bold text-base shadow-md shadow-[#F97316]/20"
+            className="w-full h-12 rounded-xl bg-[#C9A05A] hover:bg-[#B08A45] text-white font-bold text-base shadow-md shadow-[#C9A05A]/20"
             disabled={loading}
           >
             {loading ? 'Signing in…' : 'Sign In'}
@@ -94,7 +94,7 @@ export default function Login() {
           <Button
             type="button"
             variant="outline"
-            className="w-full h-12 rounded-xl border-[#E5E7EB] font-semibold text-[#0F0F0F] hover:bg-[#F9FAFB]"
+            className="w-full h-12 rounded-xl border-[#E5E7EB] font-semibold text-[#3D2B0E] hover:bg-[#F9FAFB]"
             onClick={() => base44.auth.loginWithProvider('google')}
           >
             <svg className="h-4 w-4 mr-2" viewBox="0 0 24 24">
@@ -109,7 +109,7 @@ export default function Login() {
 
         <p className="text-center mt-6 text-sm text-[#6B7280]">
           Don't have an account?{' '}
-          <Link to="/register" className="text-[#F97316] font-semibold hover:underline">Sign up</Link>
+          <Link to="/register" className="text-[#C9A05A] font-semibold hover:underline">Sign up</Link>
         </p>
       </div>
     </div>

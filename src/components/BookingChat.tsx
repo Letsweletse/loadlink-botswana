@@ -57,7 +57,7 @@ export default function BookingChat({ bookingId, loadId }: { bookingId?: string;
           const mine = m.sender_user_id && m.sender_user_id === user?.id;
           return (
             <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
-              <div className={`max-w-[75%] rounded-2xl px-3 py-2 text-sm ${mine ? "bg-[#F97316] text-white" : "bg-[#F9FAFB] text-[#0F0F0F] border border-[#E5E7EB]"}`}>
+              <div className={`max-w-[75%] rounded-2xl px-3 py-2 text-sm ${mine ? "bg-[#C9A05A] text-white" : "bg-[#F9FAFB] text-[#3D2B0E] border border-[#E5E7EB]"}`}>
                 {!mine && <p className="text-[10px] font-semibold opacity-60 mb-0.5">{m.sender_name || "User"}</p>}
                 {m.body}
               </div>
@@ -70,9 +70,9 @@ export default function BookingChat({ bookingId, loadId }: { bookingId?: string;
         <input value={text} onChange={e => setText(e.target.value)}
           onKeyDown={e => e.key === "Enter" && send()}
           placeholder="Type a message…"
-          className="flex-1 h-11 px-3 rounded-xl border border-[#E5E7EB] text-sm outline-none focus:border-[#F97316]" />
+          className="flex-1 h-11 px-3 rounded-xl border border-[#E5E7EB] text-sm outline-none focus:border-[#C9A05A]" />
         <button onClick={send} disabled={busy || !text.trim()}
-          className="h-11 w-11 rounded-xl bg-[#F97316] text-white flex items-center justify-center disabled:opacity-40">
+          className="h-11 w-11 rounded-xl bg-[#C9A05A] text-white flex items-center justify-center disabled:opacity-40">
           <Send className="h-4 w-4" />
         </button>
       </div>

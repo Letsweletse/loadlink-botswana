@@ -15,7 +15,7 @@ export default function ActiveLoadsMap({ height = 200 }: { height?: number }) {
       const out: MapMarker[] = [];
       for (const b of active.slice(0, 12)) {
         let c = b.pickup_lat && b.pickup_lng ? { lat: b.pickup_lat, lng: b.pickup_lng } : await geocode(b.pickup);
-        if (c) out.push({ ...c, color: "#F97316", label: `${b.pickup} → ${b.dropoff}`, sub: `P${b.offer} · ${b.status}` });
+        if (c) out.push({ ...c, color: "#C9A05A", label: `${b.pickup} → ${b.dropoff}`, sub: `P${b.offer} · ${b.status}` });
       }
       setMarkers(out);
     })();

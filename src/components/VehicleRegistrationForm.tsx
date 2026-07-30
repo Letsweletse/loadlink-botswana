@@ -41,7 +41,7 @@ export default function VehicleRegistrationForm({ onSaved }: { onSaved?: (v: any
     setBusy(false);
   }
 
-  const inputCls = "w-full h-12 px-3 rounded-xl border border-[#E5E7EB] bg-white text-sm outline-none focus:border-[#F97316]";
+  const inputCls = "w-full h-12 px-3 rounded-xl border border-[#E5E7EB] bg-white text-sm outline-none focus:border-[#C9A05A]";
   const labelCls = "text-xs font-semibold uppercase tracking-wide text-[#6B7280]";
 
   return (
@@ -60,7 +60,7 @@ export default function VehicleRegistrationForm({ onSaved }: { onSaved?: (v: any
           {CATS.map(c => (
             <button key={c.key} type="button" onClick={() => set("category", c.key)}
               className={`h-12 rounded-xl border text-sm font-semibold text-left px-3 ${
-                f.category === c.key ? "bg-[#F97316] border-[#F97316] text-white" : "bg-white border-[#E5E7EB] text-[#0F0F0F]"}`}>
+                f.category === c.key ? "bg-[#C9A05A] border-[#C9A05A] text-white" : "bg-white border-[#E5E7EB] text-[#3D2B0E]"}`}>
               {c.label}
             </button>
           ))}
@@ -76,7 +76,7 @@ export default function VehicleRegistrationForm({ onSaved }: { onSaved?: (v: any
       </div>
 
       <button type="submit" disabled={busy}
-        className="w-full h-12 rounded-xl bg-[#F97316] text-white font-bold disabled:opacity-50">
+        className="w-full h-12 rounded-xl bg-[#C9A05A] text-white font-bold disabled:opacity-50">
         {busy ? "Saving…" : "Register vehicle"}
       </button>
     </form>

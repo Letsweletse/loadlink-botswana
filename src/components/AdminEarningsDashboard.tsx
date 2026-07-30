@@ -24,7 +24,7 @@ export default function AdminEarningsDashboard() {
       {cells.map(([l, v]) => (
         <div key={l} className="bg-white border border-[#E5E7EB] rounded-2xl p-4">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-[#6B7280] mb-1">{l}</p>
-          <p className="text-xl font-extrabold text-[#0F0F0F] tabular-nums">{v}</p>
+          <p className="text-xl font-extrabold text-[#3D2B0E] tabular-nums">{v}</p>
         </div>
       ))}
     </div>

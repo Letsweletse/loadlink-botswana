@@ -15,7 +15,7 @@ export default function LoadBoardFilters({ onFilter }: { onFilter?: (k: string) 
         <button key={f.key}
           onClick={() => { setActive(f.key); onFilter?.(f.key); }}
           className={`px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap border transition-colors ${
-            active === f.key ? "bg-[#F97316] border-[#F97316] text-white" : "bg-white border-[#E5E7EB] text-[#6B7280]"
+            active === f.key ? "bg-[#C9A05A] border-[#C9A05A] text-white" : "bg-white border-[#E5E7EB] text-[#6B7280]"
           }`}>
           {f.label}
         </button>

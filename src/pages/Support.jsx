@@ -35,7 +35,7 @@ function TicketCard({ ticket }) {
               <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${type?.color}`}>{type?.label}</span>
               <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${status?.color}`}>{status?.label}</span>
             </div>
-            <p className="font-bold text-sm text-[#0F0F0F]">{ticket.subject}</p>
+            <p className="font-bold text-sm text-[#3D2B0E]">{ticket.subject}</p>
             <p className="text-xs text-[#6B7280] mt-1 flex items-center gap-1">
               <Clock className="h-3 w-3" />
               {new Date(ticket.created_date).toLocaleDateString()}
@@ -51,12 +51,12 @@ function TicketCard({ ticket }) {
         <div className="px-4 pb-4 space-y-3 border-t border-[#E5E7EB] pt-3">
           <p className="text-sm text-[#6B7280]">{ticket.description}</p>
           {ticket.booking_id && (
-            <p className="text-xs text-[#6B7280]">Ref: <span className="font-mono text-[#0F0F0F]">{ticket.booking_id}</span></p>
+            <p className="text-xs text-[#6B7280]">Ref: <span className="font-mono text-[#3D2B0E]">{ticket.booking_id}</span></p>
           )}
           {ticket.admin_reply ? (
-            <div className="bg-[#FFF0E6] border border-[#F97316]/20 rounded-xl p-3">
-              <p className="text-[10px] font-bold uppercase tracking-wide text-[#F97316] mb-1">Admin Response</p>
-              <p className="text-sm text-[#0F0F0F]">{ticket.admin_reply}</p>
+            <div className="bg-[#FFF8EC] border border-[#C9A05A]/20 rounded-xl p-3">
+              <p className="text-[10px] font-bold uppercase tracking-wide text-[#C9A05A] mb-1">Admin Response</p>
+              <p className="text-sm text-[#3D2B0E]">{ticket.admin_reply}</p>
             </div>
           ) : (
             <p className="text-xs text-[#9CA3AF] italic">Awaiting response…</p>
@@ -114,7 +114,7 @@ export default function Support() {
     <div className="max-w-lg mx-auto bg-[#F9FAFB] min-h-screen">
 
       {/* Header */}
-      <div className="bg-[#0F0F0F] px-4 pt-12 pb-6 flex items-end justify-between">
+      <div className="bg-[#3D2B0E] px-4 pt-12 pb-6 flex items-end justify-between">
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-widest text-white/40 mb-1">Help</p>
           <h1 className="text-2xl font-extrabold text-white tracking-tight">Support</h1>
@@ -122,7 +122,7 @@ export default function Support() {
         <Button
           size="sm"
           onClick={() => setShowForm(v => !v)}
-          className="rounded-xl bg-[#F97316] hover:bg-[#EA6A0A] text-white font-semibold h-9"
+          className="rounded-xl bg-[#C9A05A] hover:bg-[#B08A45] text-white font-semibold h-9"
         >
           <Plus className="h-4 w-4 mr-1" /> New Ticket
         </Button>
@@ -184,7 +184,7 @@ export default function Support() {
               </div>
               <div className="flex gap-2 pt-1">
                 <Button type="button" variant="outline" className="flex-1 h-11 rounded-xl border-[#E5E7EB] font-semibold" onClick={() => setShowForm(false)}>Cancel</Button>
-                <Button type="submit" className="flex-1 h-11 rounded-xl bg-[#F97316] hover:bg-[#EA6A0A] text-white font-bold" disabled={submitting || !form.type}>
+                <Button type="submit" className="flex-1 h-11 rounded-xl bg-[#C9A05A] hover:bg-[#B08A45] text-white font-bold" disabled={submitting || !form.type}>
                   {submitting ? 'Submitting…' : 'Submit'}
                 </Button>
               </div>
@@ -195,14 +195,14 @@ export default function Support() {
         {/* Tickets List */}
         {loading ? (
           <div className="flex justify-center py-12">
-            <div className="w-5 h-5 border-2 border-[#F97316]/30 border-t-[#F97316] rounded-full animate-spin" />
+            <div className="w-5 h-5 border-2 border-[#C9A05A]/30 border-t-[#C9A05A] rounded-full animate-spin" />
           </div>
         ) : tickets.length === 0 ? (
           <div className="text-center py-12">
             <div className="h-14 w-14 rounded-2xl bg-white border border-[#E5E7EB] flex items-center justify-center mx-auto mb-3 shadow-sm">
               <MessageSquare className="h-6 w-6 text-[#9CA3AF]" />
             </div>
-            <p className="font-bold text-[#0F0F0F] mb-1">No tickets yet</p>
+            <p className="font-bold text-[#3D2B0E] mb-1">No tickets yet</p>
             <p className="text-xs text-[#6B7280]">Tap "New Ticket" to contact our team.</p>
           </div>
         ) : (

@@ -122,7 +122,7 @@ export default function BookingDetail() {
 
   if (loading) return (
     <div className="flex items-center justify-center min-h-screen bg-[#F9FAFB]">
-      <div className="w-5 h-5 border-2 border-[#F97316]/30 border-t-[#F97316] rounded-full animate-spin" />
+      <div className="w-5 h-5 border-2 border-[#C9A05A]/30 border-t-[#C9A05A] rounded-full animate-spin" />
     </div>
   );
   if (!booking) return <div className="p-5 text-center text-[#6B7280]">Booking not found</div>;
@@ -135,7 +135,7 @@ export default function BookingDetail() {
       <div className="max-w-lg mx-auto bg-[#F9FAFB] min-h-screen">
 
         {/* Header */}
-        <div className="bg-[#0F0F0F] px-4 pt-12 pb-5">
+        <div className="bg-[#3D2B0E] px-4 pt-12 pb-5">
           <div className="flex items-center gap-3 mb-4">
             <button
               onClick={() => window.history.back()}
@@ -152,12 +152,12 @@ export default function BookingDetail() {
               <div className="flex items-center gap-1">
                 {STATUS_STEPS.filter(s => s !== 'cancelled').map((step, i) => (
                   <div key={step} className="flex items-center flex-1">
-                    <div className={`h-1.5 flex-1 rounded-full transition-all ${i <= currentStepIndex ? 'bg-[#F97316]' : 'bg-white/20'}`} />
+                    <div className={`h-1.5 flex-1 rounded-full transition-all ${i <= currentStepIndex ? 'bg-[#C9A05A]' : 'bg-white/20'}`} />
                   </div>
                 ))}
               </div>
               <div className="flex items-center gap-1.5">
-                <div className={`h-2 w-2 rounded-full ${booking.status === 'delivered' ? 'bg-[#16A34A]' : 'bg-[#F97316] animate-pulse'}`} />
+                <div className={`h-2 w-2 rounded-full ${booking.status === 'delivered' ? 'bg-[#16A34A]' : 'bg-[#C9A05A] animate-pulse'}`} />
                 <p className="text-xs font-semibold text-white">
                   {STATUS_LABELS[booking.status] || booking.status}
                 </p>
@@ -188,22 +188,22 @@ export default function BookingDetail() {
           {/* Route card */}
           <div className="bg-white border border-[#E5E7EB] rounded-2xl p-4 shadow-sm">
             <div className="flex items-center gap-3 mb-4">
-              <div className="h-10 w-10 rounded-xl bg-[#FFF0E6] flex items-center justify-center">
+              <div className="h-10 w-10 rounded-xl bg-[#FFF8EC] flex items-center justify-center">
                 <span className="text-xl">{cat?.icon}</span>
               </div>
               <div>
-                <p className="font-bold text-[#0F0F0F] text-sm">{cat?.label}</p>
+                <p className="font-bold text-[#3D2B0E] text-sm">{cat?.label}</p>
                 {booking.distance_km && <p className="text-xs text-[#6B7280]">{booking.distance_km} km</p>}
               </div>
             </div>
             <div className="space-y-3">
               <div className="flex items-start gap-3">
-                <div className="h-7 w-7 rounded-full bg-[#FFF0E6] border-2 border-[#F97316] flex items-center justify-center shrink-0 mt-0.5">
-                  <div className="h-2 w-2 rounded-full bg-[#F97316]" />
+                <div className="h-7 w-7 rounded-full bg-[#FFF8EC] border-2 border-[#C9A05A] flex items-center justify-center shrink-0 mt-0.5">
+                  <div className="h-2 w-2 rounded-full bg-[#C9A05A]" />
                 </div>
                 <div>
                   <p className="text-[10px] font-semibold uppercase tracking-wide text-[#6B7280]">Pickup</p>
-                  <p className="text-sm font-medium text-[#0F0F0F]">{booking.pickup_address}</p>
+                  <p className="text-sm font-medium text-[#3D2B0E]">{booking.pickup_address}</p>
                 </div>
               </div>
               {booking.stops?.length > 0 && (
@@ -212,12 +212,12 @@ export default function BookingDetail() {
                 </div>
               )}
               <div className="flex items-start gap-3">
-                <div className="h-7 w-7 rounded-full bg-[#0F0F0F] flex items-center justify-center shrink-0 mt-0.5">
+                <div className="h-7 w-7 rounded-full bg-[#3D2B0E] flex items-center justify-center shrink-0 mt-0.5">
                   <MapPin className="h-3.5 w-3.5 text-white" />
                 </div>
                 <div>
                   <p className="text-[10px] font-semibold uppercase tracking-wide text-[#6B7280]">Drop-off</p>
-                  <p className="text-sm font-medium text-[#0F0F0F]">{booking.dropoff_address}</p>
+                  <p className="text-sm font-medium text-[#3D2B0E]">{booking.dropoff_address}</p>
                 </div>
               </div>
             </div>
@@ -228,17 +228,17 @@ export default function BookingDetail() {
             <div className="bg-white border border-[#E5E7EB] rounded-2xl p-4 shadow-sm">
               <div className="flex items-center gap-2 mb-3">
                 <CircleDot className="h-4 w-4 text-[#D97706]" />
-                <span className="text-sm font-bold text-[#0F0F0F]">
+                <span className="text-sm font-bold text-[#3D2B0E]">
                   Stop-offs ({booking.stops.filter(s => s.completed).length}/{booking.stops.length} done)
                 </span>
               </div>
               <div className="space-y-2">
                 {booking.stops.map((stop, i) => (
                   <div key={i} className={`flex items-center gap-3 p-3 rounded-xl border ${stop.completed ? 'bg-[#F0FDF4] border-[#16A34A]/20' : 'bg-[#F9FAFB] border-[#E5E7EB]'}`}>
-                    <div className={`h-6 w-6 rounded-full flex items-center justify-center shrink-0 text-xs font-bold ${stop.completed ? 'bg-[#16A34A] text-white' : 'bg-[#F97316] text-white'}`}>
+                    <div className={`h-6 w-6 rounded-full flex items-center justify-center shrink-0 text-xs font-bold ${stop.completed ? 'bg-[#16A34A] text-white' : 'bg-[#C9A05A] text-white'}`}>
                       {stop.completed ? <CheckCircle className="h-3.5 w-3.5" /> : i + 1}
                     </div>
-                    <p className={`text-sm flex-1 ${stop.completed ? 'line-through text-[#9CA3AF]' : 'text-[#0F0F0F]'}`}>{stop.address}</p>
+                    <p className={`text-sm flex-1 ${stop.completed ? 'line-through text-[#9CA3AF]' : 'text-[#3D2B0E]'}`}>{stop.address}</p>
                     {role === 'driver' && booking.driver_email === user.email && !stop.completed && ['picked_up', 'in_transit'].includes(booking.status) && (
                       <button onClick={() => markStopComplete(i)} className="text-xs font-bold text-[#16A34A] bg-[#F0FDF4] px-2.5 py-1 rounded-full">
                         Done
@@ -259,7 +259,7 @@ export default function BookingDetail() {
             <p className="text-[10px] font-semibold uppercase tracking-wide text-[#6B7280] mb-2">Cargo</p>
             <div className="flex items-start gap-2">
               <Package className="h-4 w-4 text-[#6B7280] mt-0.5 shrink-0" />
-              <p className="text-sm text-[#0F0F0F]">{booking.goods_description}</p>
+              <p className="text-sm text-[#3D2B0E]">{booking.goods_description}</p>
             </div>
           </div>
 
@@ -268,11 +268,11 @@ export default function BookingDetail() {
             <p className="text-[10px] font-semibold uppercase tracking-wide text-[#6B7280] mb-3">Fare</p>
             <div className="flex items-center justify-between mb-1.5">
               <span className="text-sm text-[#6B7280]">Base fare</span>
-              <span className="text-sm font-medium text-[#0F0F0F]">P{booking.base_fare}</span>
+              <span className="text-sm font-medium text-[#3D2B0E]">P{booking.base_fare}</span>
             </div>
             <div className="flex items-center justify-between pt-2 border-t border-[#E5E7EB]">
-              <span className="font-bold text-[#0F0F0F]">Offered fare</span>
-              <span className="font-extrabold text-[#F97316] text-xl">P{booking.offered_fare || booking.base_fare}</span>
+              <span className="font-bold text-[#3D2B0E]">Offered fare</span>
+              <span className="font-extrabold text-[#C9A05A] text-xl">P{booking.offered_fare || booking.base_fare}</span>
             </div>
             {booking.commission && (
               <div className="flex items-center justify-between mt-2 pt-2 border-t border-[#E5E7EB]">
@@ -286,7 +286,7 @@ export default function BookingDetail() {
           {booking.driver_email && (
             <button
               onClick={() => setShowChat(true)}
-              className="flex items-center gap-3 bg-white border border-[#E5E7EB] rounded-2xl p-4 text-sm font-semibold text-[#0F0F0F] w-full shadow-sm active:scale-[0.98] transition-transform"
+              className="flex items-center gap-3 bg-white border border-[#E5E7EB] rounded-2xl p-4 text-sm font-semibold text-[#3D2B0E] w-full shadow-sm active:scale-[0.98] transition-transform"
             >
               <span className="text-xl">💬</span>
               <span>Message {role === 'client' ? 'Driver' : 'Client'}</span>
@@ -309,17 +309,17 @@ export default function BookingDetail() {
         {/* ── Fixed action bar ── */}
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#E5E7EB] px-4 py-3 pb-safe max-w-lg mx-auto space-y-2">
           {role === 'driver' && booking.status === 'broadcasting' && (
-            <Button onClick={acceptLoad} disabled={updating} className="w-full h-14 rounded-2xl bg-[#F97316] hover:bg-[#EA6A0A] text-white font-extrabold text-base shadow-lg shadow-[#F97316]/20">
+            <Button onClick={acceptLoad} disabled={updating} className="w-full h-14 rounded-2xl bg-[#C9A05A] hover:bg-[#B08A45] text-white font-extrabold text-base shadow-lg shadow-[#C9A05A]/20">
               {updating ? 'Accepting…' : 'Accept Load'}
             </Button>
           )}
           {role === 'driver' && booking.driver_email === user.email && booking.status === 'accepted' && (
-            <Button onClick={() => updateStatus('picked_up')} disabled={updating} className="w-full h-14 rounded-2xl bg-[#F97316] hover:bg-[#EA6A0A] text-white font-extrabold text-base shadow-lg shadow-[#F97316]/20">
+            <Button onClick={() => updateStatus('picked_up')} disabled={updating} className="w-full h-14 rounded-2xl bg-[#C9A05A] hover:bg-[#B08A45] text-white font-extrabold text-base shadow-lg shadow-[#C9A05A]/20">
               {updating ? 'Updating…' : 'Confirm Pickup'}
             </Button>
           )}
           {role === 'driver' && booking.driver_email === user.email && booking.status === 'picked_up' && (
-            <Button onClick={() => updateStatus('in_transit')} disabled={updating} className="w-full h-14 rounded-2xl bg-[#0F0F0F] hover:bg-[#1A1A1A] text-white font-extrabold text-base">
+            <Button onClick={() => updateStatus('in_transit')} disabled={updating} className="w-full h-14 rounded-2xl bg-[#3D2B0E] hover:bg-[#1A1A1A] text-white font-extrabold text-base">
               Mark In Transit
             </Button>
           )}
@@ -334,7 +334,7 @@ export default function BookingDetail() {
             </Button>
           )}
           {booking.status === 'delivered' && (
-            <Button variant="outline" onClick={() => setShowInvoice(true)} className="w-full h-11 rounded-xl border-[#E5E7EB] font-semibold text-[#0F0F0F] flex items-center gap-2">
+            <Button variant="outline" onClick={() => setShowInvoice(true)} className="w-full h-11 rounded-xl border-[#E5E7EB] font-semibold text-[#3D2B0E] flex items-center gap-2">
               <FileText className="h-4 w-4" /> View Invoice
             </Button>
           )}
@@ -342,13 +342,13 @@ export default function BookingDetail() {
             existingRating ? (
               <div className="flex items-center justify-center gap-1 py-2">
                 {[1,2,3,4,5].map(n => (
-                  <Star key={n} className={`h-5 w-5 ${n <= existingRating.stars ? 'fill-[#F97316] text-[#F97316]' : 'text-[#E5E7EB]'}`} />
+                  <Star key={n} className={`h-5 w-5 ${n <= existingRating.stars ? 'fill-[#C9A05A] text-[#C9A05A]' : 'text-[#E5E7EB]'}`} />
                 ))}
                 <span className="text-xs text-[#6B7280] ml-2">You rated this driver</span>
               </div>
             ) : (
               <Button onClick={() => setShowRating(true)} variant="outline" className="w-full h-11 rounded-xl border-[#E5E7EB] font-semibold flex items-center gap-2">
-                <Star className="h-4 w-4 text-[#F97316]" /> Rate Your Driver
+                <Star className="h-4 w-4 text-[#C9A05A]" /> Rate Your Driver
               </Button>
             )
           )}

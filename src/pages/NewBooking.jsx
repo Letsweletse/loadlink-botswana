@@ -110,7 +110,7 @@ export default function NewBooking() {
     <div className="max-w-lg mx-auto bg-[#F9FAFB] min-h-screen">
 
       {/* Header */}
-      <div className="bg-[#0F0F0F] px-4 pt-12 pb-6">
+      <div className="bg-[#3D2B0E] px-4 pt-12 pb-6">
         <div className="flex items-center gap-3">
           <Link to="/" className="h-9 w-9 rounded-xl bg-white/10 flex items-center justify-center">
             <ArrowLeft className="h-4 w-4 text-white" />
@@ -134,11 +134,11 @@ export default function NewBooking() {
               <div>
                 <Label className="text-xs font-semibold text-[#6B7280]">Pickup Location</Label>
                 <div className="relative mt-1.5">
-                  <div className="absolute left-3 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full bg-[#FFF0E6] border-2 border-[#F97316] flex items-center justify-center">
-                    <div className="h-2 w-2 rounded-full bg-[#F97316]" />
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full bg-[#FFF8EC] border-2 border-[#C9A05A] flex items-center justify-center">
+                    <div className="h-2 w-2 rounded-full bg-[#C9A05A]" />
                   </div>
                   <Input
-                    className="pl-11 h-11 rounded-xl border-[#E5E7EB] bg-[#F9FAFB] text-[#0F0F0F]"
+                    className="pl-11 h-11 rounded-xl border-[#E5E7EB] bg-[#F9FAFB] text-[#3D2B0E]"
                     placeholder="e.g. Game City, Gaborone"
                     value={form.pickup_address}
                     onChange={e => { update('pickup_address', e.target.value); autoCalcDistance(e.target.value, form.dropoff_address); }}
@@ -157,11 +157,11 @@ export default function NewBooking() {
               <div>
                 <Label className="text-xs font-semibold text-[#6B7280]">Drop-off Location</Label>
                 <div className="relative mt-1.5">
-                  <div className="absolute left-3 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full bg-[#0F0F0F] flex items-center justify-center">
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full bg-[#3D2B0E] flex items-center justify-center">
                     <MapPin className="h-3 w-3 text-white" />
                   </div>
                   <Input
-                    className="pl-11 h-11 rounded-xl border-[#E5E7EB] bg-[#F9FAFB] text-[#0F0F0F]"
+                    className="pl-11 h-11 rounded-xl border-[#E5E7EB] bg-[#F9FAFB] text-[#3D2B0E]"
                     placeholder="e.g. Francistown CBD"
                     value={form.dropoff_address}
                     onChange={e => { update('dropoff_address', e.target.value); autoCalcDistance(form.pickup_address, e.target.value); }}
@@ -175,14 +175,14 @@ export default function NewBooking() {
                   Distance to drop-off (km)
                   {calcLoading && <Loader2 className="h-3 w-3 animate-spin text-[#9CA3AF]" />}
                   {!calcLoading && form.dropoff_distance_km && (
-                    <span className="text-[#F97316] font-normal">Auto-calculated</span>
+                    <span className="text-[#C9A05A] font-normal">Auto-calculated</span>
                   )}
                 </Label>
                 <Input
                   type="number"
                   min="0.1"
                   step="0.1"
-                  className="mt-1.5 h-11 rounded-xl border-[#E5E7EB] bg-[#F9FAFB] text-[#0F0F0F]"
+                  className="mt-1.5 h-11 rounded-xl border-[#E5E7EB] bg-[#F9FAFB] text-[#3D2B0E]"
                   placeholder="Auto-calculated or enter manually"
                   value={form.dropoff_distance_km}
                   onChange={e => update('dropoff_distance_km', e.target.value)}
@@ -203,7 +203,7 @@ export default function NewBooking() {
           <div className="bg-white border border-[#E5E7EB] rounded-2xl overflow-hidden shadow-sm">
             <div className="px-4 py-3 border-b border-[#E5E7EB] flex items-center justify-between">
               <p className="text-[10px] font-semibold uppercase tracking-widest text-[#6B7280]">Select Vehicle & Fare</p>
-              {distance > 0 && <span className="text-xs font-semibold text-[#F97316]">{distance.toFixed(1)} km</span>}
+              {distance > 0 && <span className="text-xs font-semibold text-[#C9A05A]">{distance.toFixed(1)} km</span>}
             </div>
             <div className="divide-y divide-[#E5E7EB]">
               {Object.entries(CATEGORIES).map(([key, cat]) => {
@@ -215,23 +215,23 @@ export default function NewBooking() {
                     type="button"
                     onClick={() => update('category', key)}
                     className={`w-full flex items-center justify-between px-4 py-3.5 text-left transition-colors ${
-                      isSelected ? 'bg-[#FFF0E6]' : 'hover:bg-[#F9FAFB]'
+                      isSelected ? 'bg-[#FFF8EC]' : 'hover:bg-[#F9FAFB]'
                     }`}
                   >
                     <div className="flex items-center gap-3">
-                      <div className={`h-10 w-10 rounded-xl flex items-center justify-center text-xl ${isSelected ? 'bg-[#F97316]/10' : 'bg-[#F9FAFB]'}`}>
+                      <div className={`h-10 w-10 rounded-xl flex items-center justify-center text-xl ${isSelected ? 'bg-[#C9A05A]/10' : 'bg-[#F9FAFB]'}`}>
                         {cat.icon}
                       </div>
                       <div>
-                        <p className={`text-sm font-semibold ${isSelected ? 'text-[#F97316]' : 'text-[#0F0F0F]'}`}>{cat.label}</p>
+                        <p className={`text-sm font-semibold ${isSelected ? 'text-[#C9A05A]' : 'text-[#3D2B0E]'}`}>{cat.label}</p>
                         <p className="text-xs text-[#6B7280]">Deposit: P{cat.deposit}</p>
                       </div>
                     </div>
                     <div className="text-right flex items-center gap-2">
-                      <p className={`font-extrabold ${isSelected ? 'text-[#F97316] text-lg' : 'text-sm text-[#0F0F0F]'}`}>
+                      <p className={`font-extrabold ${isSelected ? 'text-[#C9A05A] text-lg' : 'text-sm text-[#3D2B0E]'}`}>
                         {cat.hourly ? `P${isSelected ? Math.max(0, 500 + fareAdjust) : 500}/hr` : `P${isSelected ? Math.max(0, est + fareAdjust) : est}`}
                       </p>
-                      {isSelected && <div className="h-5 w-5 rounded-full bg-[#F97316] flex items-center justify-center"><ChevronRight className="h-3 w-3 text-white" /></div>}
+                      {isSelected && <div className="h-5 w-5 rounded-full bg-[#C9A05A] flex items-center justify-center"><ChevronRight className="h-3 w-3 text-white" /></div>}
                     </div>
                   </button>
                 );
@@ -244,17 +244,17 @@ export default function NewBooking() {
                   <div className="space-y-1.5 pb-3 border-b border-[#E5E7EB]">
                     <div className="flex justify-between text-xs">
                       <span className="text-[#6B7280]">Base fare</span>
-                      <span className="font-medium text-[#0F0F0F]">P{CATEGORIES[form.category].baseFare}</span>
+                      <span className="font-medium text-[#3D2B0E]">P{CATEGORIES[form.category].baseFare}</span>
                     </div>
                     <div className="flex justify-between text-xs">
                       <span className="text-[#6B7280]">Fuel surcharge ({(distance - BASE_RADIUS_KM).toFixed(1)} km beyond {BASE_RADIUS_KM} km)</span>
-                      <span className="font-medium text-[#F97316]">+P{calculateFuelSurcharge(distance)}</span>
+                      <span className="font-medium text-[#C9A05A]">+P{calculateFuelSurcharge(distance)}</span>
                     </div>
                   </div>
                 )}
                 <div className="flex items-center justify-between">
-                  <p className="text-xs font-semibold text-[#0F0F0F]">Adjust Offer</p>
-                  <span className={`text-xs font-bold ${fareAdjust < 0 ? 'text-red-500' : fareAdjust > 0 ? 'text-[#F97316]' : 'text-[#6B7280]'}`}>
+                  <p className="text-xs font-semibold text-[#3D2B0E]">Adjust Offer</p>
+                  <span className={`text-xs font-bold ${fareAdjust < 0 ? 'text-red-500' : fareAdjust > 0 ? 'text-[#C9A05A]' : 'text-[#6B7280]'}`}>
                     {fareAdjust === 0 ? 'Recommended' : fareAdjust > 0 ? `+P${fareAdjust}` : `-P${Math.abs(fareAdjust)}`}
                   </span>
                 </div>
@@ -268,7 +268,7 @@ export default function NewBooking() {
                 />
                 <div className="flex justify-between text-xs text-[#9CA3AF]">
                   <span>P{Math.max(0, baseFare - Math.round(baseFare * 0.5))}</span>
-                  <button type="button" onClick={() => setFareAdjust(0)} className="text-[#F97316] font-semibold">Reset</button>
+                  <button type="button" onClick={() => setFareAdjust(0)} className="text-[#C9A05A] font-semibold">Reset</button>
                   <span>P{baseFare + Math.round(baseFare * (isHourly ? 5 : 1))}</span>
                 </div>
               </div>
@@ -279,7 +279,7 @@ export default function NewBooking() {
           <div className="bg-white border border-[#E5E7EB] rounded-2xl p-4 shadow-sm">
             <Label className="text-xs font-semibold uppercase tracking-wide text-[#6B7280]">What are you transporting?</Label>
             <Textarea
-              className="mt-2 rounded-xl border-[#E5E7EB] bg-[#F9FAFB] text-[#0F0F0F] resize-none"
+              className="mt-2 rounded-xl border-[#E5E7EB] bg-[#F9FAFB] text-[#3D2B0E] resize-none"
               placeholder="e.g. 3 sofas and a fridge"
               value={form.goods_description}
               onChange={e => update('goods_description', e.target.value)}
@@ -292,7 +292,7 @@ export default function NewBooking() {
           <div className="bg-white border border-[#E5E7EB] rounded-2xl p-4 shadow-sm">
             <Label className="text-xs font-semibold uppercase tracking-wide text-[#6B7280]">WhatsApp / Phone Number</Label>
             <Input
-              className="mt-2 h-11 rounded-xl border-[#E5E7EB] bg-[#F9FAFB] text-[#0F0F0F]"
+              className="mt-2 h-11 rounded-xl border-[#E5E7EB] bg-[#F9FAFB] text-[#3D2B0E]"
               placeholder="+267 7X XXX XXX"
               value={form.client_phone}
               onChange={e => update('client_phone', e.target.value)}
@@ -304,7 +304,7 @@ export default function NewBooking() {
           <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#E5E7EB] px-4 py-3 pb-safe max-w-lg mx-auto">
             <Button
               type="submit"
-              className="w-full h-14 text-base font-extrabold rounded-2xl bg-[#F97316] hover:bg-[#EA6A0A] text-white shadow-lg shadow-[#F97316]/20 disabled:opacity-50"
+              className="w-full h-14 text-base font-extrabold rounded-2xl bg-[#C9A05A] hover:bg-[#B08A45] text-white shadow-lg shadow-[#C9A05A]/20 disabled:opacity-50"
               disabled={submitting || !form.category}
             >
               {submitting ? 'Broadcasting…' : `Broadcast — P${offeredFare}`}

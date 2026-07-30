@@ -27,12 +27,12 @@ export default function DriverSummary() {
 
   return (
     <div className="bg-white rounded-2xl p-4 border border-[#E5E7EB]">
-      <p className="font-bold text-[#0F0F0F] mb-3">Your Summary</p>
+      <p className="font-bold text-[#3D2B0E] mb-3">Your Summary</p>
       <div className="grid grid-cols-2 gap-3">
         {cells.map(([l, v]) => (
           <div key={l} className="bg-[#F9FAFB] rounded-xl p-3">
             <p className="text-[11px] text-[#6B7280] mb-1">{l}</p>
-            <p className="text-lg font-extrabold text-[#0F0F0F] tabular-nums">{v}</p>
+            <p className="text-lg font-extrabold text-[#3D2B0E] tabular-nums">{v}</p>
           </div>
         ))}
       </div>

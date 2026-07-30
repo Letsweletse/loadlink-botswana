@@ -61,7 +61,7 @@ export default function TrackingMap({
             const el = document.createElement("div");
             el.style.cssText =
               `width:16px;height:16px;border-radius:50%;border:3px solid #fff;` +
-              `background:${p.color || "#F97316"};box-shadow:0 1px 4px rgba(0,0,0,.35)`;
+              `background:${p.color || "#C9A05A"};box-shadow:0 1px 4px rgba(0,0,0,.35)`;
             const m = new mapboxgl.Marker({ element: el }).setLngLat([p.lng, p.lat]);
             if (p.label) m.setPopup(new mapboxgl.Popup({ offset: 14, closeButton: false })
               .setHTML(`<strong style="font-size:12px">${p.label}</strong>${p.sub ? `<br><span style="font-size:11px;color:#6B7280">${p.sub}</span>` : ""}`));
@@ -83,7 +83,7 @@ export default function TrackingMap({
             map.addLayer({
               id: "route", type: "line", source: "route",
               layout: { "line-cap": "round", "line-join": "round" },
-              paint: { "line-color": "#F97316", "line-width": 4, "line-opacity": 0.9 },
+              paint: { "line-color": "#C9A05A", "line-width": 4, "line-opacity": 0.9 },
             });
           }
         });
@@ -115,7 +115,7 @@ export default function TrackingMap({
       <div ref={ref} style={{ height }} />
       {info && (
         <div className="flex items-center gap-4 px-4 py-2.5 border-t border-[#E5E7EB] text-xs">
-          <span className="font-bold text-[#0F0F0F] tabular-nums">{info.km} km</span>
+          <span className="font-bold text-[#3D2B0E] tabular-nums">{info.km} km</span>
           <span className="text-[#6B7280]">~{info.minutes} min drive</span>
         </div>
       )}

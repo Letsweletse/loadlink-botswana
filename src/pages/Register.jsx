@@ -45,20 +45,20 @@ export default function Register() {
   if (sent) {
     return (
       <div className="min-h-screen bg-[#F9FAFB] flex flex-col">
-        <div className="bg-[#0F0F0F] px-5 pt-12 pb-10">
+        <div className="bg-[#3D2B0E] px-5 pt-12 pb-10">
           <p className="font-extrabold text-white tracking-tight text-lg">Van-Link</p>
         </div>
         <div className="flex-1 px-5 pt-10 max-w-sm w-full mx-auto text-center">
           <div className="h-14 w-14 rounded-2xl bg-[#F0FDF4] flex items-center justify-center mx-auto mb-4">
             <Check className="h-7 w-7 text-[#16A34A]" />
           </div>
-          <h1 className="text-2xl font-extrabold text-[#0F0F0F] tracking-tight">Check your email</h1>
+          <h1 className="text-2xl font-extrabold text-[#3D2B0E] tracking-tight">Check your email</h1>
           <p className="text-sm text-[#6B7280] mt-2 leading-6">
-            We sent a confirmation link to <span className="font-semibold text-[#0F0F0F]">{email}</span>.
+            We sent a confirmation link to <span className="font-semibold text-[#3D2B0E]">{email}</span>.
             Tap it to activate your account, then sign in.
           </p>
           <Link to="/login">
-            <Button className="mt-6 w-full h-12 rounded-xl bg-[#F97316] hover:bg-[#EA6A0A] text-white font-bold">
+            <Button className="mt-6 w-full h-12 rounded-xl bg-[#C9A05A] hover:bg-[#B08A45] text-white font-bold">
               Go to sign in
             </Button>
           </Link>
@@ -69,9 +69,9 @@ export default function Register() {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F9FAFB]">
-      <div className="bg-[#0F0F0F] px-5 pt-12 pb-10">
+      <div className="bg-[#3D2B0E] px-5 pt-12 pb-10">
         <div className="flex items-center gap-3 mb-6">
-          <div className="h-10 w-10 rounded-xl bg-[#F97316] flex items-center justify-center">
+          <div className="h-10 w-10 rounded-xl bg-[#C9A05A] flex items-center justify-center">
             <Truck className="h-5 w-5 text-white" />
           </div>
           <div>
@@ -97,8 +97,8 @@ export default function Register() {
                   key={val} type="button" onClick={() => setRole(val)}
                   className={`h-12 rounded-xl border font-semibold text-sm transition-colors ${
                     role === val
-                      ? 'bg-[#F97316] border-[#F97316] text-white'
-                      : 'bg-white border-[#E5E7EB] text-[#0F0F0F]'
+                      ? 'bg-[#C9A05A] border-[#C9A05A] text-white'
+                      : 'bg-white border-[#E5E7EB] text-[#3D2B0E]'
                   }`}
                 >{label}</button>
               ))}
@@ -107,21 +107,21 @@ export default function Register() {
 
           <div>
             <Label className="text-xs font-semibold uppercase tracking-wide text-[#6B7280]">Full name</Label>
-            <Input className="mt-1.5 h-12 rounded-xl border-[#E5E7EB] bg-white focus-visible:ring-[#F97316]"
+            <Input className="mt-1.5 h-12 rounded-xl border-[#E5E7EB] bg-white focus-visible:ring-[#C9A05A]"
               placeholder="Letsweletse Seatla" value={fullName} onChange={e => setFullName(e.target.value)} required />
           </div>
 
           <div>
             <Label className="text-xs font-semibold uppercase tracking-wide text-[#6B7280]">Email</Label>
-            <Input className="mt-1.5 h-12 rounded-xl border-[#E5E7EB] bg-white focus-visible:ring-[#F97316]"
+            <Input className="mt-1.5 h-12 rounded-xl border-[#E5E7EB] bg-white focus-visible:ring-[#C9A05A]"
               type="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} required />
           </div>
 
           <div>
             <Label className="text-xs font-semibold uppercase tracking-wide text-[#6B7280]">Phone</Label>
             <div className="mt-1.5 flex items-center gap-2">
-              <span className="h-12 px-3 flex items-center rounded-xl border border-[#E5E7EB] bg-white text-sm font-semibold text-[#0F0F0F] shrink-0">🇧🇼 +267</span>
-              <Input className="h-12 rounded-xl border-[#E5E7EB] bg-white focus-visible:ring-[#F97316]"
+              <span className="h-12 px-3 flex items-center rounded-xl border border-[#E5E7EB] bg-white text-sm font-semibold text-[#3D2B0E] shrink-0">🇧🇼 +267</span>
+              <Input className="h-12 rounded-xl border-[#E5E7EB] bg-white focus-visible:ring-[#C9A05A]"
                 type="tel" inputMode="numeric" placeholder="75 123 456" value={phone}
                 onChange={e => setPhone(e.target.value.replace(/\D/g, '').slice(0, 8))} required />
             </div>
@@ -129,18 +129,18 @@ export default function Register() {
 
           <div>
             <Label className="text-xs font-semibold uppercase tracking-wide text-[#6B7280]">Password</Label>
-            <Input className="mt-1.5 h-12 rounded-xl border-[#E5E7EB] bg-white focus-visible:ring-[#F97316]"
+            <Input className="mt-1.5 h-12 rounded-xl border-[#E5E7EB] bg-white focus-visible:ring-[#C9A05A]"
               type="password" placeholder="Min. 8 characters" value={password} onChange={e => setPassword(e.target.value)} required />
           </div>
 
           <div>
             <Label className="text-xs font-semibold uppercase tracking-wide text-[#6B7280]">Confirm password</Label>
-            <Input className="mt-1.5 h-12 rounded-xl border-[#E5E7EB] bg-white focus-visible:ring-[#F97316]"
+            <Input className="mt-1.5 h-12 rounded-xl border-[#E5E7EB] bg-white focus-visible:ring-[#C9A05A]"
               type="password" placeholder="Repeat password" value={confirm} onChange={e => setConfirm(e.target.value)} required />
           </div>
 
           <Button type="submit" disabled={loading}
-            className="w-full h-12 rounded-xl bg-[#F97316] hover:bg-[#EA6A0A] text-white font-bold text-base shadow-md shadow-[#F97316]/20">
+            className="w-full h-12 rounded-xl bg-[#C9A05A] hover:bg-[#B08A45] text-white font-bold text-base shadow-md shadow-[#C9A05A]/20">
             {loading ? 'Creating account…' : 'Create Account'}
           </Button>
 
@@ -151,7 +151,7 @@ export default function Register() {
           </div>
 
           <Button type="button" variant="outline"
-            className="w-full h-12 rounded-xl border-[#E5E7EB] font-semibold text-[#0F0F0F] hover:bg-[#F9FAFB]"
+            className="w-full h-12 rounded-xl border-[#E5E7EB] font-semibold text-[#3D2B0E] hover:bg-[#F9FAFB]"
             onClick={() => base44.auth.loginWithProvider('google')}>
             Continue with Google
           </Button>
@@ -159,7 +159,7 @@ export default function Register() {
 
         <p className="text-center mt-6 text-sm text-[#6B7280]">
           Already have an account?{' '}
-          <Link to="/login" className="text-[#F97316] font-semibold hover:underline">Sign in</Link>
+          <Link to="/login" className="text-[#C9A05A] font-semibold hover:underline">Sign in</Link>
         </p>
       </div>
     </div>

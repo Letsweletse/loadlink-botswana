@@ -10,10 +10,12 @@ export function normalizePhone(v?: string) {
 
 // Map UI category keys <-> db enum (mini|medium|big)
 const CAT_TO_DB: Record<string, string> = {
-  under_2ton: "mini", medium_7ton: "medium", big_over_7ton: "big",
-  mini: "mini", medium: "medium", big: "big",
+  under_2ton: "mini", medium_7ton: "medium", big_over_7ton: "big", plant_machinery: "plant",
+  mini: "mini", medium: "medium", big: "big", plant: "plant",
 };
-const DB_TO_CAT: Record<string, string> = { mini: "under_2ton", medium: "medium_7ton", big: "big_over_7ton" };
+const DB_TO_CAT: Record<string, string> = {
+  mini: "under_2ton", medium: "medium_7ton", big: "big_over_7ton", plant: "plant_machinery",
+};
 
 // Map UI status <-> db status
 const ST_TO_DB: Record<string, string> = {
@@ -32,12 +34,24 @@ function loadOut(r: any) {
     category: DB_TO_CAT[r.category] || r.category,
     status: DB_TO_ST[r.status] || r.status,
     client_email: r.client_email,
+    client_name: r.client_name,
     created_date: r.created_at,
     fare: Number(r.offer || 0),
+    offered_fare: Number(r.offer || 0),
+    base_fare: r.base_fare != null ? Number(r.base_fare) : Number(r.offer || 0),
+    final_fare: r.final_fare != null ? Number(r.final_fare) : null,
+    commission: r.commission != null ? Number(r.commission) : null,
     distance_km: Number(r.km || 0),
     pickup_address: r.pickup,
     dropoff_address: r.dropoff,
+    goods_description: r.cargo_description,
     driver_name: r.driver,
+    stops: Array.isArray(r.stops) ? r.stops : [],
+    accepted_at: r.accepted_at,
+    picked_up_at: r.picked_up_at,
+    delivered_at: r.delivered_at,
+    client_email: r.client_email,
+    driver_email: r.driver_email,
   };
 }
 
@@ -49,9 +63,12 @@ function loadIn(p: any) {
   if (p.distance_km !== undefined) { out.km = p.distance_km; delete out.distance_km; }
   if (p.pickup_address !== undefined) { out.pickup = p.pickup_address; delete out.pickup_address; }
   if (p.dropoff_address !== undefined) { out.dropoff = p.dropoff_address; delete out.dropoff_address; }
+  if (p.goods_description !== undefined) { out.cargo_description = p.goods_description; delete out.goods_description; }
+  if (p.offered_fare !== undefined) { out.offer = p.offered_fare; delete out.offered_fare; }
   delete out.created_date;
   delete out.client_email;
   delete out.driver_name;
+  delete out.fare;
   return out;
 }
 
@@ -112,6 +129,10 @@ export const base44 = {
         const row = loadIn(payload);
         if (!row.id) row.id = `VL${Date.now().toString(36).toUpperCase()}`;
         if (!row.status) row.status = "Broadcasting";
+        if (!row.client_email) {
+          const { data: au } = await supabase.auth.getUser();
+          row.client_email = au.user?.email ?? null;
+        }
         try {
           const { geocode } = await import("@/lib/mapbox");
           if (row.pickup && row.pickup_lat == null) {
@@ -128,7 +149,20 @@ export const base44 = {
         return loadOut(data);
       },
     },
-    Vehicle: entity("trucks"),
+    Vehicle: {
+      ...entity("trucks"),
+      async create(payload: any) {
+        if (!supabase) throw new Error("Service unavailable");
+        const row = { ...payload };
+        if (!row.driver_email) {
+          const { data: au } = await supabase.auth.getUser();
+          row.driver_email = au.user?.email ?? null;
+        }
+        const { data, error } = await supabase.from("trucks").insert(row).select().single();
+        if (error) throw new Error(error.message);
+        return data;
+      },
+    },
     Profile: entity("profiles"),
     Transaction: entity("wallet_transactions"),
     PaymentRequest: entity("payment_requests"),

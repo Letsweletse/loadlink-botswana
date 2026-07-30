@@ -12,11 +12,14 @@ export default function QuickAcceptSheet({ open = true, onClose, booking, onAcce
   async function accept() {
     setBusy(true); setErr("");
     try {
+      const commission = Math.round(Number(booking.offer || 0) * 0.10);
       const updated = await base44.entities.Booking.update(booking.id, {
         status: "Accepted",
         driver: user?.full_name || "Driver",
         driver_phone: user?.phone,
+        driver_email: user?.email,
         accepted_at: new Date().toISOString(),
+        commission,
       });
       onAccept?.(updated);
       onClose?.();

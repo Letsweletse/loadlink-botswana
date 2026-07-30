@@ -2,6 +2,7 @@ export const CATEGORIES: Record<string, { label: string; baseFare: number; perKm
   under_2ton: { label: "Van / Mini (Under 2t)", baseFare: 250, perKm: 8, special: true },
   medium_7ton: { label: "Medium Truck (Under 7t)", baseFare: 450, perKm: 14 },
   big_over_7ton: { label: "Big Truck (Over 7t)", baseFare: 750, perKm: 24 },
+  plant_machinery: { label: "Plant & Machinery", baseFare: 500, perKm: 18, special: true },
 };
 
 export const BASE_RADIUS_KM = 12;

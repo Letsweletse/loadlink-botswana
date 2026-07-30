@@ -1,6 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { AdminPanel } from "@/components/AdminPanel";
+import AdminDashboard from "@/pages/AdminDashboard";
+import RequireAuth from "@/components/RequireAuth";
+
+function ProtectedAdminDashboard() {
+  return (
+    <RequireAuth adminOnly>
+      <AdminDashboard />
+    </RequireAuth>
+  );
+}
 
 export const Route = createFileRoute("/admin")({
-  component: AdminPanel,
+  component: ProtectedAdminDashboard,
 });

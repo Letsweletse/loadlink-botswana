@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import TrackingMap, { type MapMarker } from "./TrackingMap";
 
-export default function FleetMap({ height = 200 }: { height?: number }) {
+export default function FleetMap({ height = 200 }: { height?: number | string }) {
   const [markers, setMarkers] = useState<MapMarker[]>([]);
   const [count, setCount] = useState(0);
 

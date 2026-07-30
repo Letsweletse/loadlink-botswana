@@ -1,7 +1,7 @@
 import { MapPin, Navigation } from "lucide-react";
 
 export default function MapPanel({ title = "Route", points = [], height = 200 }: {
-  title?: string; points?: { label: string; sub?: string; color?: string }[]; height?: number;
+  title?: string; points?: { label: string; sub?: string; color?: string }[]; height?: number | string;
 }) {
   return (
     <div className="rounded-2xl border border-[#E5E7EB] bg-white overflow-hidden">

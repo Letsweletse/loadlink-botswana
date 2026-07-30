@@ -10,7 +10,7 @@ type Props = {
   to?: Coord | null;
   fromLabel?: string;
   toLabel?: string;
-  height?: number;
+  height?: number | string;
   showRoute?: boolean;
   title?: string;
 };

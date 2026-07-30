@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import TrackingMap, { type MapMarker } from "./TrackingMap";
 import { geocode } from "@/lib/mapbox";
 
-export default function ActiveLoadsMap({ height = 200 }: { height?: number }) {
+export default function ActiveLoadsMap({ height = 200 }: { height?: number | string }) {
   const [markers, setMarkers] = useState<MapMarker[]>([]);
   const [count, setCount] = useState(0);
 

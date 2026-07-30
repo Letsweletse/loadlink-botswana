@@ -73,7 +73,7 @@ function loadIn(p: any) {
 
 function vehicleOut(r: any) {
   if (!r) return r;
-  return { ...r, category: DB_TO_CAT[r.category] || r.category };
+  return { ...r, category: DB_TO_CAT[r.category] || r.category, number_plate: r.plate };
 }
 function vehicleIn(p: any) {
   const out: any = { ...p };

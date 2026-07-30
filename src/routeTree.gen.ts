@@ -24,6 +24,7 @@ import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AccountRouteImport } from './routes/account'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as BookingIdRouteImport } from './routes/booking.$id'
+import { Route as DriverRegistrationsRouteImport } from './routes/driver-registrations'
 
 const IndexRoute = IndexRouteImport.update({ id: '/', path: '/', getParentRoute: () => rootRouteImport } as any)
 const AccountRoute = AccountRouteImport.update({ id: '/account', path: '/account', getParentRoute: () => rootRouteImport } as any)
@@ -45,6 +46,7 @@ const SupportRoute = SupportRouteImport.update({ id: '/support', path: '/support
 const TrackRoute = TrackRouteImport.update({ id: '/track', path: '/track', getParentRoute: () => rootRouteImport } as any)
 const WalletRoute = WalletRouteImport.update({ id: '/wallet', path: '/wallet', getParentRoute: () => rootRouteImport } as any)
 const BookingIdRoute = BookingIdRouteImport.update({ id: '/booking/$id', path: '/booking/$id', getParentRoute: () => rootRouteImport } as any)
+const DriverRegistrationsRoute = DriverRegistrationsRouteImport.update({ id: '/driver-registrations', path: '/driver-registrations', getParentRoute: () => rootRouteImport } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -67,6 +69,7 @@ export interface FileRoutesByFullPath {
   '/track': typeof TrackRoute
   '/wallet': typeof WalletRoute
   '/booking/$id': typeof BookingIdRoute
+  '/driver-registrations': typeof DriverRegistrationsRoute
 }
 
 export interface FileRoutesByTo extends FileRoutesByFullPath {}
@@ -93,14 +96,15 @@ export interface FileRoutesById {
   '/track': typeof TrackRoute
   '/wallet': typeof WalletRoute
   '/booking/$id': typeof BookingIdRoute
+  '/driver-registrations': typeof DriverRegistrationsRoute
 }
 
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/account' | '/admin' | '/analytics' | '/client' | '/driver' | '/driver-loads' | '/forgot-password' | '/home' | '/login' | '/my-bookings' | '/my-vehicle' | '/new-booking' | '/profile' | '/register' | '/signup' | '/support' | '/track' | '/wallet' | '/booking/$id' | '/booking/$id'
+  fullPaths: '/' | '/account' | '/admin' | '/analytics' | '/client' | '/driver' | '/driver-loads' | '/forgot-password' | '/home' | '/login' | '/my-bookings' | '/my-vehicle' | '/new-booking' | '/profile' | '/register' | '/signup' | '/support' | '/track' | '/wallet' | '/booking/$id' | '/driver-registrations' | '/booking/$id' | '/driver-registrations'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/account' | '/admin' | '/analytics' | '/client' | '/driver' | '/driver-loads' | '/forgot-password' | '/home' | '/login' | '/my-bookings' | '/my-vehicle' | '/new-booking' | '/profile' | '/register' | '/signup' | '/support' | '/track' | '/wallet' | '/booking/$id' | '/booking/$id'
-  id: '__root__' | '/' | '/account' | '/admin' | '/analytics' | '/client' | '/driver' | '/driver-loads' | '/forgot-password' | '/home' | '/login' | '/my-bookings' | '/my-vehicle' | '/new-booking' | '/profile' | '/register' | '/signup' | '/support' | '/track' | '/wallet' | '/booking/$id' | '/booking/$id'
+  to: '/' | '/account' | '/admin' | '/analytics' | '/client' | '/driver' | '/driver-loads' | '/forgot-password' | '/home' | '/login' | '/my-bookings' | '/my-vehicle' | '/new-booking' | '/profile' | '/register' | '/signup' | '/support' | '/track' | '/wallet' | '/booking/$id' | '/driver-registrations' | '/booking/$id' | '/driver-registrations'
+  id: '__root__' | '/' | '/account' | '/admin' | '/analytics' | '/client' | '/driver' | '/driver-loads' | '/forgot-password' | '/home' | '/login' | '/my-bookings' | '/my-vehicle' | '/new-booking' | '/profile' | '/register' | '/signup' | '/support' | '/track' | '/wallet' | '/booking/$id' | '/driver-registrations' | '/booking/$id' | '/driver-registrations'
   fileRoutesById: FileRoutesById
 }
 
@@ -125,6 +129,7 @@ export interface RootRouteChildren {
   TrackRoute: typeof TrackRoute
   WalletRoute: typeof WalletRoute
   BookingIdRoute: typeof BookingIdRoute
+  DriverRegistrationsRoute: typeof DriverRegistrationsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -149,6 +154,7 @@ declare module '@tanstack/react-router' {
     '/track': { id: '/track'; path: '/track'; fullPath: '/track'; preLoaderRoute: typeof TrackRouteImport; parentRoute: typeof rootRouteImport }
     '/wallet': { id: '/wallet'; path: '/wallet'; fullPath: '/wallet'; preLoaderRoute: typeof WalletRouteImport; parentRoute: typeof rootRouteImport }
     '/booking/$id': { id: '/booking/$id'; path: '/booking/$id'; fullPath: '/booking/$id'; preLoaderRoute: typeof BookingIdRouteImport; parentRoute: typeof rootRouteImport }
+    '/driver-registrations': { id: '/driver-registrations'; path: '/driver-registrations'; fullPath: '/driver-registrations'; preLoaderRoute: typeof DriverRegistrationsRouteImport; parentRoute: typeof rootRouteImport }
   }
 }
 
@@ -173,6 +179,7 @@ const rootRouteChildren: RootRouteChildren = {
   TrackRoute,
   WalletRoute,
   BookingIdRoute,
+  DriverRegistrationsRoute,
 }
 
 export const routeTree = rootRouteImport

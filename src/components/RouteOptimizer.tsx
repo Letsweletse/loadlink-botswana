@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import TrackingMap, { type MapMarker } from "./TrackingMap";
 import { geocode } from "@/lib/mapbox";
 
-export default function RouteOptimizer({ stops = [], height = 180 }: { stops?: any[]; height?: number }) {
+export default function RouteOptimizer({ stops = [], height = 180 }: { stops?: any[]; height?: number | string }) {
   const [markers, setMarkers] = useState<MapMarker[]>([]);
   const list = (stops || []).filter(Boolean);
 

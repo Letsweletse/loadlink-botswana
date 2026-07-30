@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/AuthContext';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
@@ -8,20 +8,36 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { LogOut, User, Phone, CreditCard, ChevronRight } from 'lucide-react';
 
 export default function Profile() {
-  const { user } = useAuth();
+  const { user, refresh } = useAuth();
   const [role, setRole] = useState(user?.role || '');
   const [phone, setPhone] = useState(user?.phone || '');
   const [idNumber, setIdNumber] = useState(user?.id_number || '');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!user) return;
+    setRole(r => r || user.role || '');
+    setPhone(p => (p && !String(p).startsWith('PENDING-') ? p : (String(user.phone || '').startsWith('PENDING-') ? '' : user.phone || '')));
+  }, [user?.id, user?.phone, user?.role]);
+
+  const needsPhone = String(user?.phone || '').startsWith('PENDING-');
 
   async function handleSave() {
+    setError('');
+    const digits = String(phone).replace(/\D/g, '');
+    if (digits.length < 8) { setError('Enter a valid Botswana phone number'); return; }
     setSaving(true);
-    await base44.auth.updateMe({ role, phone, id_number: idNumber });
+    try {
+      await base44.auth.updateMe({ role, phone });
+      await refresh();
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (e) {
+      setError(e.message || 'Could not save your profile.');
+    }
     setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
-    window.location.reload();
   }
 
   const initials = user?.full_name
@@ -96,6 +112,19 @@ export default function Profile() {
             </div>
           </div>
         </div>
+
+        {needsPhone && (
+          <div className="bg-[#FFFBEB] border border-[#FDE68A] rounded-2xl p-4 mb-3">
+            <p className="font-bold text-[#92400E] text-sm">Add your phone number</p>
+            <p className="text-xs text-[#B45309] mt-1">
+              Van-Link uses your phone to match you with loads and drivers. Bookings won't work until you save it.
+            </p>
+          </div>
+        )}
+
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 text-sm p-3 rounded-xl mb-3">{error}</div>
+        )}
 
         <Button
           onClick={handleSave}

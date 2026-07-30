@@ -176,6 +176,44 @@ export const base44 = {
         options: { redirectTo: window.location.origin, queryParams: { prompt: "select_account" } },
       });
     },
+    /** Update the signed-in user's profile row (and auth metadata). */
+    async updateMe(patch: { name?: string; phone?: string; role?: string; email?: string; business?: string; address?: string; id_number?: string }) {
+      if (!supabase) throw new Error("Service unavailable");
+      const { data: au } = await supabase.auth.getUser();
+      const uid = au.user?.id;
+      if (!uid) throw new Error("Not signed in");
+
+      const row: any = {};
+      if (patch.name !== undefined) row.name = patch.name;
+      if (patch.email !== undefined) row.email = patch.email;
+      if (patch.business !== undefined) row.business = patch.business;
+      if (patch.address !== undefined) row.address = patch.address;
+      if (patch.phone) row.phone = normalizePhone(patch.phone);
+      if (patch.role) row.role = patch.role === "client" ? "customer" : patch.role;
+      row.updated_at = new Date().toISOString();
+
+      const { data: existing } = await supabase
+        .from("profiles").select("id").eq("user_id", uid).limit(1).maybeSingle();
+
+      if (existing) {
+        const { error } = await supabase.from("profiles").update(row).eq("id", existing.id);
+        if (error) throw new Error(error.message.includes("duplicate") ? "That phone number is already registered." : error.message);
+      } else {
+        const { error } = await supabase.from("profiles").insert({ ...row, user_id: uid });
+        if (error) throw new Error(error.message.includes("duplicate") ? "That phone number is already registered." : error.message);
+      }
+
+      await supabase.auth.updateUser({
+        data: {
+          ...(patch.name ? { full_name: patch.name } : {}),
+          ...(patch.phone ? { phone: normalizePhone(patch.phone) } : {}),
+          ...(patch.role ? { role: patch.role === "client" ? "customer" : patch.role } : {}),
+        },
+      }).catch(() => null);
+
+      return true;
+    },
+
     logout() {
       return supabase?.auth.signOut();
     },

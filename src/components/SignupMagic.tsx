@@ -135,8 +135,7 @@ export function SignupMagic({ role }: { role: SignupRole }) {
           <button onClick={signInGoogle} disabled={busy || !isSupabaseConfigured} style={{
             display: "flex", alignItems: "center", gap: 14, padding: "18px 0",
             borderTop: `1px solid ${LINE}`, borderBottom: `1px solid ${LINE}`,
-            background: "none", border: "none", borderBottom: `1px solid ${LINE}`,
-            borderTop: `1px solid ${LINE}`, cursor: "pointer", width: "100%",
+            background: "none", border: "none", cursor: "pointer", width: "100%",
             opacity: busy ? 0.6 : 1,
           }}>
             <svg width="18" height="18" viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
@@ -177,8 +176,7 @@ export function SignupMagic({ role }: { role: SignupRole }) {
 
           {/* CTA */}
           <button onClick={sendMagicLink} disabled={busy || !email.includes("@")} style={{
-            marginTop: "auto", paddingTop: 0,
-            marginTop: 40,
+            marginTop: 40, paddingTop: 0,
             background: BROWN, border: "none", borderRadius: 14,
             padding: "17px", color: BG, fontSize: 15, fontWeight: 800,
             cursor: busy || !email.includes("@") ? "not-allowed" : "pointer",

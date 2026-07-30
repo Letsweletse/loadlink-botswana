@@ -1,11 +1,49 @@
-export default function QuickAcceptSheet({ open, onClose, booking, onAccept }: any) {
-  if (!open) return null;
+import { useState } from "react";
+import { base44 } from "@/api/base44Client";
+import { useAuth } from "@/lib/AuthContext";
+import { MapPin, Package } from "lucide-react";
+
+export default function QuickAcceptSheet({ open = true, onClose, booking, onAccept }: any) {
+  const { user } = useAuth();
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  if (!open || !booking) return null;
+
+  async function accept() {
+    setBusy(true); setErr("");
+    try {
+      const updated = await base44.entities.Booking.update(booking.id, {
+        status: "Accepted",
+        driver: user?.full_name || "Driver",
+        driver_phone: user?.phone,
+        accepted_at: new Date().toISOString(),
+      });
+      onAccept?.(updated);
+      onClose?.();
+    } catch (e: any) {
+      setErr(e.message || "Could not accept this load.");
+    }
+    setBusy(false);
+  }
+
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "flex-end", zIndex: 999 }}>
-      <div style={{ background: "#fff", width: "100%", borderRadius: "20px 20px 0 0", padding: 24 }}>
-        <p style={{ fontWeight: 700, marginBottom: 8 }}>{booking?.pickup} → {booking?.dropoff}</p>
-        <p style={{ color: "#6B7280", fontSize: 14, marginBottom: 16 }}>P{booking?.offer} · {booking?.km}km</p>
-        <button onClick={() => { onAccept?.(booking); onClose?.(); }} style={{ width: "100%", padding: 14, background: "#F97316", color: "#fff", border: "none", borderRadius: 12, fontWeight: 700 }}>Accept Load</button>
+    <div className="fixed inset-0 z-[999] bg-black/50 flex items-end" onClick={onClose}>
+      <div className="bg-white w-full rounded-t-3xl p-6" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center gap-2 mb-3">
+          <Package className="h-4 w-4 text-[#F97316]" />
+          <span className="text-xs font-semibold uppercase tracking-wide text-[#6B7280]">Load offer</span>
+        </div>
+        <p className="text-2xl font-extrabold text-[#0F0F0F] tabular-nums">P{booking.offer}</p>
+        <div className="mt-4 space-y-2">
+          <div className="flex gap-2 text-sm"><MapPin className="h-4 w-4 text-[#16A34A] shrink-0 mt-0.5" /><span className="text-[#0F0F0F]">{booking.pickup}</span></div>
+          <div className="flex gap-2 text-sm"><MapPin className="h-4 w-4 text-[#DC2626] shrink-0 mt-0.5" /><span className="text-[#0F0F0F]">{booking.dropoff}</span></div>
+        </div>
+        <p className="text-xs text-[#6B7280] mt-3">{booking.km}km · {booking.load || booking.cargo_description || "General cargo"}</p>
+        {err && <p className="mt-3 text-sm text-[#DC2626] bg-[#FEF2F2] border border-red-200 rounded-xl p-3">{err}</p>}
+        <button onClick={accept} disabled={busy}
+          className="mt-5 w-full h-12 rounded-xl bg-[#F97316] text-white font-bold disabled:opacity-50">
+          {busy ? "Accepting…" : "Accept load"}
+        </button>
       </div>
     </div>
   );

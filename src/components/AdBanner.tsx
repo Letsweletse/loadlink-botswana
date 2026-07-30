@@ -1,1 +1,1 @@
-export default function AdBanner({ slot }: { slot?: number }) { return null; }
+export default function AdBanner() { return null; }

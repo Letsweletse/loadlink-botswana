@@ -1,13 +1,33 @@
+import { Link } from "@tanstack/react-router";
+import { MapPin, Package } from "lucide-react";
 import { getStatusColor, getStatusLabel } from "@/lib/fareUtils";
-export default function BookingCard({ booking }: { booking: any }) {
-  return (
-    <div style={{ background: "#fff", borderRadius: 16, padding: 16, border: "1px solid #E5E7EB", marginBottom: 8 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-        <span style={{ fontSize: 12, fontWeight: 700, color: getStatusColor(booking.status), background: getStatusColor(booking.status) + "20", padding: "2px 8px", borderRadius: 99 }}>{getStatusLabel(booking.status)}</span>
-        <span style={{ fontSize: 12, color: "#6B7280" }}>P{booking.offer}</span>
+
+export default function BookingCard({ booking, onClick }: any) {
+  if (!booking) return null;
+  const color = getStatusColor(booking.status);
+  const body = (
+    <div className="bg-white rounded-2xl p-4 border border-[#E5E7EB] hover:border-[#F97316]/40 transition-colors">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-[11px] font-bold px-2 py-1 rounded-full" style={{ color, background: color + "1A" }}>
+          {getStatusLabel(booking.status)}
+        </span>
+        <span className="text-sm font-extrabold text-[#0F0F0F] tabular-nums">P{booking.offer}</span>
       </div>
-      <p style={{ fontSize: 14, fontWeight: 600, color: "#0F0F0F", margin: "0 0 4px" }}>{booking.pickup} → {booking.dropoff}</p>
-      <p style={{ fontSize: 12, color: "#6B7280", margin: 0 }}>{booking.category} · {booking.km}km</p>
+      <div className="space-y-1">
+        <p className="flex items-center gap-1.5 text-sm font-semibold text-[#0F0F0F]">
+          <MapPin className="h-3.5 w-3.5 text-[#16A34A] shrink-0" />
+          <span className="truncate">{booking.pickup}</span>
+        </p>
+        <p className="flex items-center gap-1.5 text-sm font-semibold text-[#0F0F0F]">
+          <MapPin className="h-3.5 w-3.5 text-[#DC2626] shrink-0" />
+          <span className="truncate">{booking.dropoff}</span>
+        </p>
+      </div>
+      <p className="flex items-center gap-1.5 text-xs text-[#6B7280] mt-2">
+        <Package className="h-3 w-3" />{booking.km}km · {booking.load || booking.cargo_description || "General cargo"}
+      </p>
     </div>
   );
+  if (onClick) return <button onClick={() => onClick(booking)} className="w-full text-left">{body}</button>;
+  return <Link to="/booking/$id" params={{ id: String(booking.id) }} className="block">{body}</Link>;
 }

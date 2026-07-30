@@ -1,3 +1,13 @@
-export default function LiveTrackingMap({ booking }: { booking?: any }) {
-  return <div style={{ background: "#F9FAFB", borderRadius: 16, height: 220, display: "flex", alignItems: "center", justifyContent: "center", color: "#6B7280", fontSize: 14 }}>📍 Live Tracking</div>;
+import MapPanel from "./MapPanel";
+export default function LiveTrackingMap({ booking }: any) {
+  return (
+    <MapPanel
+      title={booking?.status === "in_transit" ? "In transit" : "Live tracking"}
+      height={200}
+      points={booking ? [
+        { label: booking.pickup, sub: "Pickup", color: "#16A34A" },
+        { label: booking.dropoff, sub: "Dropoff", color: "#DC2626" },
+      ] : []}
+    />
+  );
 }

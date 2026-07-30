@@ -1,10 +1,20 @@
-export default function VehicleDetailModal({ open, onClose, vehicle }: any) {
-  if (!open) return null;
+export default function VehicleDetailModal({ open = true, onClose, vehicle }: any) {
+  if (!open || !vehicle) return null;
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "flex-end", zIndex: 999 }}>
-      <div style={{ background: "#fff", width: "100%", borderRadius: "20px 20px 0 0", padding: 24 }}>
-        <p style={{ fontWeight: 700, marginBottom: 8 }}>{vehicle?.make} {vehicle?.model}</p>
-        <button onClick={onClose} style={{ width: "100%", padding: 14, background: "#0F0F0F", color: "#fff", border: "none", borderRadius: 12, fontWeight: 700 }}>Close</button>
+    <div className="fixed inset-0 z-[999] bg-black/50 flex items-end" onClick={onClose}>
+      <div className="bg-white w-full rounded-t-3xl p-6" onClick={e => e.stopPropagation()}>
+        <p className="font-extrabold text-[#0F0F0F] text-lg">{vehicle.name}</p>
+        <p className="text-xs text-[#6B7280] mb-4">{vehicle.plate}</p>
+        <div className="space-y-2 text-sm">
+          {[["Category", vehicle.category], ["Capacity", `${vehicle.capacity_tonnes || 0} t`],
+            ["Area", vehicle.area || "—"], ["Status", vehicle.status],
+            ["Wallet", `P${Number(vehicle.wallet || 0).toFixed(2)}`], ["Rating", vehicle.rating]].map(([l, v]) => (
+            <div key={l as string} className="flex justify-between gap-4">
+              <span className="text-[#6B7280]">{l}</span><span className="text-[#0F0F0F] font-semibold">{v as any}</span>
+            </div>
+          ))}
+        </div>
+        <button onClick={onClose} className="mt-5 w-full h-12 rounded-xl bg-[#0F0F0F] text-white font-bold">Close</button>
       </div>
     </div>
   );

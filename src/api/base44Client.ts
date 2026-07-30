@@ -112,6 +112,17 @@ export const base44 = {
         const row = loadIn(payload);
         if (!row.id) row.id = `VL${Date.now().toString(36).toUpperCase()}`;
         if (!row.status) row.status = "Broadcasting";
+        try {
+          const { geocode } = await import("@/lib/mapbox");
+          if (row.pickup && row.pickup_lat == null) {
+            const c = await geocode(row.pickup);
+            if (c) { row.pickup_lat = c.lat; row.pickup_lng = c.lng; }
+          }
+          if (row.dropoff && row.dropoff_lat == null) {
+            const c = await geocode(row.dropoff);
+            if (c) { row.dropoff_lat = c.lat; row.dropoff_lng = c.lng; }
+          }
+        } catch { /* geocoding is best-effort */ }
         const { data, error } = await supabase.from("loads").insert(row).select().single();
         if (error) throw new Error(error.message);
         return loadOut(data);

@@ -1,3 +1,13 @@
 import { createFileRoute } from '@tanstack/react-router'
 import Analytics from '@/pages/Analytics'
-export const Route = createFileRoute('/analytics')({ component: Analytics })
+import RequireAuth from '@/components/RequireAuth'
+
+function ProtectedAnalytics() {
+  return (
+    <RequireAuth>
+      <Analytics />
+    </RequireAuth>
+  )
+}
+
+export const Route = createFileRoute('/analytics')({ component: ProtectedAnalytics })

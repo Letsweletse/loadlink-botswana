@@ -50,7 +50,6 @@ function loadOut(r: any) {
     accepted_at: r.accepted_at,
     picked_up_at: r.picked_up_at,
     delivered_at: r.delivered_at,
-    client_email: r.client_email,
     driver_email: r.driver_email,
   };
 }

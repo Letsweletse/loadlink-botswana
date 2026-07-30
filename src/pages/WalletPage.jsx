@@ -45,18 +45,27 @@ export default function WalletPage() {
   const [filterType, setFilterType] = useState('all');
 
   useEffect(() => {
+    if (!user?.email) { setLoading(false); return; }
+    let cancelled = false;
     async function load() {
-      const query = role === 'admin' ? {} : { user_email: user.email };
-      const [txns, vehs] = await Promise.all([
-        base44.entities.Transaction.filter(query, '-created_date', 200),
-        role === 'driver' ? base44.entities.Vehicle.filter({ driver_email: user.email }) : Promise.resolve([]),
-      ]);
-      setTransactions(txns);
-      setVehicles(vehs);
-      setLoading(false);
+      try {
+        const query = role === 'admin' ? {} : { user_email: user.email };
+        const [txns, vehs] = await Promise.all([
+          base44.entities.Transaction.filter(query, '-created_date', 200),
+          role === 'driver' ? base44.entities.Vehicle.filter({ driver_email: user.email }) : Promise.resolve([]),
+        ]);
+        if (cancelled) return;
+        setTransactions(txns);
+        setVehicles(vehs);
+      } catch (e) {
+        console.warn('WalletPage load failed', e);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     }
     load();
-  }, [user.email, role]);
+    return () => { cancelled = true; };
+  }, [user?.email, role]);
 
   const filtered = filterType === 'all' ? transactions : transactions.filter(t => t.type === filterType);
 

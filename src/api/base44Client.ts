@@ -161,6 +161,27 @@ export const base44 = {
         email: email.trim().toLowerCase(),
         password,
       });
+      if (!error) return;
+      const m = (error.message || "").toLowerCase();
+      if (m.includes("email not confirmed")) {
+        throw new Error("Please confirm your email first — check your inbox for the link we sent.");
+      }
+      if (m.includes("invalid login credentials")) {
+        throw new Error(
+          "Email or password is incorrect. If you signed up with Google, use the \u201CContinue with Google\u201D button below."
+        );
+      }
+      throw new Error(error.message);
+    },
+
+    /** Resend the signup confirmation email. */
+    async resendConfirmation(email: string) {
+      if (!supabase) throw new Error("Service unavailable");
+      const { error } = await supabase.auth.resend({
+        type: "signup",
+        email: email.trim().toLowerCase(),
+        options: { emailRedirectTo: `${window.location.origin}/` },
+      });
       if (error) throw new Error(error.message);
     },
     async resetPassword(email: string) {

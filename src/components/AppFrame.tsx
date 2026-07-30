@@ -32,11 +32,6 @@ export default function AppFrame({ children }: { children: React.ReactNode }) {
   // instance, which crashes the whole tree (AppFrame wraps every route).
   const { unread } = useDriverNotifications();
 
-  // IMPORTANT:
-  // Hooks must always run in the same order.
-  // Never put hooks inside conditions.
-  const { unread } = useDriverNotifications();
-
   // Keep login/register pages clean
   if (NO_CHROME.has(path)) {
     return <>{children}</>;

@@ -1,50 +1,59 @@
 import { useEffect, useState } from "react";
+import { base44 } from "@/api/base44Client";
+import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthContext";
 
+/** Safe to call unconditionally on every render (Rules of Hooks) — it
+ *  no-ops internally whenever there's no signed-in user yet. */
 export default function useDriverNotifications() {
   const { user } = useAuth();
-  const [unread, setUnread] = useState(0);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [pendingNotification, setPendingNotification] = useState<any | null>(null);
 
   useEffect(() => {
-    // No user = no notifications to load
-    if (!user) {
-      setUnread(0);
-      return;
-    }
-
-    // Only drivers need driver notifications
-    if (user.role !== "driver") {
-      setUnread(0);
-      return;
-    }
-
     let mounted = true;
+    if (!user?.id) { setNotifications([]); setPendingNotification(null); return; }
 
-    async function loadNotifications() {
+    async function load() {
       try {
-        // Put your existing notification fetching logic here
-        // Keep it inside this try/catch so it cannot crash the app
-
-        if (mounted) {
-          setUnread(0);
-        }
-      } catch (error) {
-        console.error("Notification loading failed:", error);
-
-        if (mounted) {
-          setUnread(0);
-        }
+        const rows = await base44.entities.Notification.filter({ user_id: user.id }, "-created_at", 50);
+        if (!mounted) return;
+        setNotifications(rows);
+        const nextUnread = rows.find((n: any) => !n.read && n.type === "new_load");
+        if (nextUnread) setPendingNotification((cur: any) => cur || nextUnread);
+      } catch (e) {
+        console.error("Notification loading failed (non-fatal):", e);
       }
     }
+    load();
+    return () => { mounted = false; };
+  }, [user?.id]);
 
-    loadNotifications();
+  useEffect(() => {
+    if (!supabase || !user?.id) return;
+    const ch = supabase.channel(`notif-${user.id}`)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
+        (p: any) => {
+          setNotifications(n => [p.new, ...n]);
+          if (p.new.type === "new_load") setPendingNotification((cur: any) => cur || p.new);
+        })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [user?.id]);
 
-    return () => {
-      mounted = false;
-    };
-  }, [user]);
+  const unread = notifications.filter(n => !n.read).length;
 
-  return {
-    unread,
-  };
+  async function markRead(id: string) {
+    try {
+      await base44.entities.Notification.update(id, { read: true });
+      setNotifications(n => n.map(x => (x.id === id ? { ...x, read: true } : x)));
+    } catch (e) { console.error("markRead failed (non-fatal):", e); }
+  }
+
+  async function dismissNotification() {
+    if (pendingNotification?.id) await markRead(pendingNotification.id);
+    setPendingNotification(null);
+  }
+
+  return { notifications, unread, markRead, pendingNotification, dismissNotification };
 }

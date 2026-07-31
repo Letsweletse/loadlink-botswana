@@ -12,6 +12,7 @@ import RatingModal from '@/components/RatingModal';
 import BookingChat from '@/components/BookingChat';
 import InvoiceModal from '@/components/InvoiceModal';
 import RouteOptimizer from '@/components/RouteOptimizer';
+import LoadPaymentModal from '@/components/LoadPaymentModal';
 
 const STATUS_STEPS = ['broadcasting', 'accepted', 'picked_up', 'in_transit', 'delivered'];
 const STATUS_LABELS = { broadcasting: 'Broadcasting', accepted: 'Accepted', picked_up: 'Picked Up', in_transit: 'In Transit', delivered: 'Delivered' };
@@ -27,6 +28,7 @@ export default function BookingDetail() {
   const [showRating, setShowRating] = useState(false);
   const [showInvoice, setShowInvoice] = useState(false);
   const [showChat, setShowChat] = useState(false);
+  const [showPayment, setShowPayment] = useState(false);
   const [existingRating, setExistingRating] = useState(null);
   const role = user?.role || 'client';
 
@@ -62,13 +64,17 @@ export default function BookingDetail() {
     if (vehicle.deposit_balance < CATEGORIES[booking.category].deposit) {
       alert(`Minimum deposit of P${CATEGORIES[booking.category].deposit} required`); setUpdating(false); return;
     }
-    await base44.entities.Booking.update(id, {
+    const commission = Math.round(Number(booking.offered_fare ?? booking.fare ?? 0) * 0.10);
+    const updated = await base44.entities.Booking.update(id, {
       status: 'accepted',
       driver_email: user.email,
+      driver_phone: user.phone,
       vehicle_id: vehicle.id,
       accepted_at: new Date().toISOString(),
+      commission,
     });
-    setBooking(prev => ({ ...prev, status: 'accepted', driver_email: user.email }));
+    setBooking(prev => ({ ...prev, ...updated, status: 'accepted', driver_email: user.email, commission }));
+    setShowPayment(true);
     setUpdating(false);
   }
 
@@ -378,6 +384,7 @@ export default function BookingDetail() {
       )}
       {showInvoice && <InvoiceModal booking={booking} onClose={() => setShowInvoice(false)} />}
       {showChat && <BookingChat booking={booking} currentUserEmail={user.email} onClose={() => setShowChat(false)} />}
+      {showPayment && <LoadPaymentModal booking={booking} onDone={() => setShowPayment(false)} />}
     </>
   );
 }

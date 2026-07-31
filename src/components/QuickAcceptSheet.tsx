@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import { MapPin, Package, X } from "lucide-react";
+import LoadPaymentModal from "./LoadPaymentModal";
 
 type Props = {
   // Used by DriverLoads: a real-time "new load for you" popup driven by a Notification row
@@ -23,6 +24,7 @@ export default function QuickAcceptSheet({
   const [booking, setBooking] = useState<any | null>(bookingProp ?? null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const [acceptedBooking, setAcceptedBooking] = useState<any | null>(null);
 
   const isOpen = open ?? Boolean(notification);
   const close = onClose ?? onDismiss;
@@ -33,6 +35,19 @@ export default function QuickAcceptSheet({
       base44.entities.Booking.get(notification.load_id).then(setBooking).catch(() => setBooking(null));
     }
   }, [notification?.load_id, bookingProp]);
+
+  if (acceptedBooking) {
+    return (
+      <LoadPaymentModal
+        booking={acceptedBooking}
+        onDone={() => {
+          onAccept?.(acceptedBooking);
+          setAcceptedBooking(null);
+          close?.();
+        }}
+      />
+    );
+  }
 
   if (!isOpen || !booking) return null;
 
@@ -48,8 +63,7 @@ export default function QuickAcceptSheet({
         accepted_at: new Date().toISOString(),
         commission,
       });
-      onAccept?.(updated);
-      close?.();
+      setAcceptedBooking(updated);
     } catch (e: any) {
       setErr(e.message || "Could not accept this load — it may already be taken.");
     }

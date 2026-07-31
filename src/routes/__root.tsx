@@ -1,4 +1,5 @@
 import { AuthProvider } from "@/lib/AuthContext";
+import { NotificationsProvider } from "@/lib/NotificationsContext";
 import AppFrame from "@/components/AppFrame";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
@@ -101,9 +102,11 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <AppFrame>
-          <Outlet />
-        </AppFrame>
+        <NotificationsProvider>
+          <AppFrame>
+            <Outlet />
+          </AppFrame>
+        </NotificationsProvider>
       </AuthProvider>
       <Toaster position="bottom-center" />
     </QueryClientProvider>

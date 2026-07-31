@@ -1,6 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router'
-import WalletPage from '@/pages/WalletPage'
+import { lazyPage } from '@/components/LazyPage'
 import RequireAuth from '@/components/RequireAuth'
+
+const WalletPage = lazyPage(() => import('@/pages/WalletPage'))
 
 function ProtectedWalletPage() {
   return (

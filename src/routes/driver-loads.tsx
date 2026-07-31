@@ -1,6 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router'
-import DriverLoads from '@/pages/DriverLoads'
+import { lazyPage } from '@/components/LazyPage'
 import RequireAuth from '@/components/RequireAuth'
+
+const DriverLoads = lazyPage(() => import('@/pages/DriverLoads'))
 
 function ProtectedDriverLoads() {
   return (

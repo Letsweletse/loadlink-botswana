@@ -1,6 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useAuth } from "@/lib/AuthContext";
-import useDriverNotifications from "@/hooks/useDriverNotifications";
+import { useNotifications } from "@/lib/NotificationsContext";
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent,
   DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator,
@@ -30,7 +30,7 @@ export default function AppFrame({ children }: { children: React.ReactNode }) {
   // safe even before auth resolves. Calling it behind a ternary/early-return
   // instead changes the hook count between renders of this same mounted
   // instance, which crashes the whole tree (AppFrame wraps every route).
-  const { unread } = useDriverNotifications();
+  const { unread } = useNotifications();
 
   // Keep login/register pages clean
   if (NO_CHROME.has(path)) {

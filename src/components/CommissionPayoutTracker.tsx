@@ -5,20 +5,40 @@ import { supabase } from "@/lib/supabase";
 export default function CommissionPayoutTracker() {
   const [reqs, setReqs] = useState<any[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [err, setErr] = useState("");
 
   useEffect(() => {
     base44.entities.PaymentRequest.list("-created_at", 100).then(r => { setReqs(r); setLoaded(true); });
   }, []);
 
-  async function act(req: any, status: string) {
+  async function approve(req: any) {
+    setBusyId(req.id); setErr("");
     try {
-      await base44.entities.PaymentRequest.update(req.id, { status });
-      setReqs(r => r.map(x => (x.id === req.id ? { ...x, status } : x)));
-      // If this was a load commission payment, mark the load as paid once approved
-      if (status === "approved" && req.load_id && supabase) {
+      // admin_verify_payment atomically: checks caller is admin, credits the
+      // driver's wallet_transactions ledger, and flips the request to
+      // approved — all in one transaction, so the two can't drift apart.
+      const { data, error } = await supabase.rpc("admin_verify_payment", { p_request_id: req.id });
+      if (error) throw new Error(error.message);
+      setReqs(r => r.map(x => (x.id === req.id ? { ...x, status: data.status } : x)));
+      if (req.load_id) {
         await supabase.from("loads").update({ commission_paid: true }).eq("id", req.load_id);
       }
-    } catch (e: any) { console.warn(e.message); }
+    } catch (e: any) {
+      setErr(e.message || "Could not approve this payment.");
+    }
+    setBusyId(null);
+  }
+
+  async function reject(req: any) {
+    setBusyId(req.id); setErr("");
+    try {
+      await base44.entities.PaymentRequest.update(req.id, { status: "rejected" });
+      setReqs(r => r.map(x => (x.id === req.id ? { ...x, status: "rejected" } : x)));
+    } catch (e: any) {
+      setErr(e.message || "Could not reject this payment.");
+    }
+    setBusyId(null);
   }
 
   if (!loaded) {
@@ -35,11 +55,12 @@ export default function CommissionPayoutTracker() {
 
   return (
     <div className="space-y-4">
+      {err && <p className="text-sm text-[#DC2626] bg-[#FEF2F2] border border-red-200 rounded-xl p-3">{err}</p>}
       {pending.length > 0 && (
         <div>
           <p className="text-xs font-bold uppercase tracking-wide text-[#B08A45] mb-2">Pending review ({pending.length})</p>
           <div className="space-y-2">
-            {pending.map(r => <ReqRow key={r.id} r={r} onAct={act} />)}
+            {pending.map(r => <ReqRow key={r.id} r={r} busy={busyId === r.id} onApprove={approve} onReject={reject} />)}
           </div>
         </div>
       )}
@@ -47,7 +68,7 @@ export default function CommissionPayoutTracker() {
         <div>
           <p className="text-xs font-bold uppercase tracking-wide text-[#B08A45] mb-2">History</p>
           <div className="space-y-2">
-            {resolved.map(r => <ReqRow key={r.id} r={r} onAct={act} />)}
+            {resolved.map(r => <ReqRow key={r.id} r={r} busy={false} onApprove={approve} onReject={reject} />)}
           </div>
         </div>
       )}
@@ -55,7 +76,7 @@ export default function CommissionPayoutTracker() {
   );
 }
 
-function ReqRow({ r, onAct }: { r: any; onAct: (r: any, status: string) => void }) {
+function ReqRow({ r, busy, onApprove, onReject }: { r: any; busy: boolean; onApprove: (r: any) => void; onReject: (r: any) => void }) {
   return (
     <div className="bg-white border border-[#E5E7EB] rounded-2xl p-4">
       <div className="flex items-center justify-between gap-3">
@@ -66,8 +87,10 @@ function ReqRow({ r, onAct }: { r: any; onAct: (r: any, status: string) => void 
         </div>
         {r.status === "pending" ? (
           <div className="flex gap-2 shrink-0">
-            <button onClick={() => onAct(r, "approved")} className="text-xs font-bold px-3 py-2 rounded-lg bg-[#16A34A] text-white">Approve</button>
-            <button onClick={() => onAct(r, "rejected")} className="text-xs font-bold px-3 py-2 rounded-lg bg-[#FEF2F2] text-[#DC2626]">Reject</button>
+            <button onClick={() => onApprove(r)} disabled={busy} className="text-xs font-bold px-3 py-2 rounded-lg bg-[#16A34A] text-white disabled:opacity-50">
+              {busy ? "…" : "Approve"}
+            </button>
+            <button onClick={() => onReject(r)} disabled={busy} className="text-xs font-bold px-3 py-2 rounded-lg bg-[#FEF2F2] text-[#DC2626] disabled:opacity-50">Reject</button>
           </div>
         ) : (
           <span className={`text-xs font-bold px-3 py-1.5 rounded-full shrink-0 ${r.status === "approved" ? "bg-[#F0FDF4] text-[#16A34A]" : "bg-[#FEF2F2] text-[#DC2626]"}`}>{r.status}</span>

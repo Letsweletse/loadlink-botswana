@@ -1,11 +1,25 @@
-import { useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthContext";
 
-/** Safe to call unconditionally on every render (Rules of Hooks) — it
- *  no-ops internally whenever there's no signed-in user yet. */
-export default function useDriverNotifications() {
+type Ctx = {
+  notifications: any[];
+  unread: number;
+  pendingNotification: any | null;
+  markRead: (id: string) => Promise<void>;
+  dismissNotification: () => Promise<void>;
+};
+
+const NotificationsContext = createContext<Ctx>({
+  notifications: [], unread: 0, pendingNotification: null,
+  markRead: async () => {}, dismissNotification: async () => {},
+});
+
+/** Single realtime subscription + fetch per signed-in session, shared by
+ *  every component that needs it (bell icon in AppFrame, load popup in
+ *  DriverLoads) instead of each mounting its own duplicate channel. */
+export function NotificationsProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const [notifications, setNotifications] = useState<any[]>([]);
   const [pendingNotification, setPendingNotification] = useState<any | null>(null);
@@ -55,5 +69,11 @@ export default function useDriverNotifications() {
     setPendingNotification(null);
   }
 
-  return { notifications, unread, markRead, pendingNotification, dismissNotification };
+  return (
+    <NotificationsContext.Provider value={{ notifications, unread, pendingNotification, markRead, dismissNotification }}>
+      {children}
+    </NotificationsContext.Provider>
+  );
 }
+
+export const useNotifications = () => useContext(NotificationsContext);

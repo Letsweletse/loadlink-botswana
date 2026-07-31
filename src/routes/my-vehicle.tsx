@@ -1,6 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router'
-import VehicleRegistration from '@/pages/VehicleRegistration'
+import { lazyPage } from '@/components/LazyPage'
 import RequireAuth from '@/components/RequireAuth'
+
+const VehicleRegistration = lazyPage(() => import('@/pages/VehicleRegistration'))
 
 function ProtectedVehicleRegistration() {
   return (

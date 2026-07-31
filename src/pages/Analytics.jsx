@@ -5,7 +5,6 @@ import { Link } from '@tanstack/react-router';
 import { ArrowLeft, TrendingUp, Package, CheckCircle, Clock } from 'lucide-react';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { CATEGORIES } from '@/lib/fareUtils';
-import moment from 'moment';
 
 const STATUS_COLORS = {
   broadcasting: '#D97706',
@@ -29,10 +28,13 @@ export default function Analytics() {
   }, [user.email, role]);
 
   const last14 = Array.from({ length: 14 }, (_, i) => {
-    const day = moment().subtract(13 - i, 'days');
-    const count = bookings.filter(b => moment(b.created_date).isSame(day, 'day')).length;
-    const revenue = bookings.filter(b => moment(b.created_date).isSame(day, 'day') && b.final_fare).reduce((s, b) => s + (b.final_fare || 0), 0);
-    return { day: day.format('DD MMM'), count, revenue };
+    const day = new Date();
+    day.setDate(day.getDate() - (13 - i));
+    const dayKey = day.toDateString();
+    const count = bookings.filter(b => new Date(b.created_date).toDateString() === dayKey).length;
+    const revenue = bookings.filter(b => new Date(b.created_date).toDateString() === dayKey && b.final_fare).reduce((s, b) => s + (b.final_fare || 0), 0);
+    const label = day.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+    return { day: label, count, revenue };
   });
 
   const statusData = Object.keys(STATUS_COLORS).map(s => ({

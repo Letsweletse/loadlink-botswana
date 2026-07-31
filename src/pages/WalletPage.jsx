@@ -3,7 +3,6 @@ import { useAuth } from '@/lib/AuthContext';
 import { base44 } from '@/api/base44Client';
 import { ArrowLeft, TrendingUp, TrendingDown, ArrowDownCircle, Filter, Wallet } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import moment from 'moment';
 import { Link } from '@tanstack/react-router';
 import DriverSummary from '@/components/DriverSummary';
 
@@ -74,12 +73,26 @@ export default function WalletPage() {
   const totalCommission = transactions.filter(t => t.type === 'commission').reduce((s, t) => s + t.amount, 0);
   const netBalance      = totalDeposits + totalEarnings - totalCommission;
 
+  function isoWeek(d) {
+    const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    const dayNum = date.getUTCDay() || 7;
+    date.setUTCDate(date.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+    return Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
+  }
+
   const weeklyEarnings = Array.from({ length: 8 }, (_, i) => {
-    const week = moment().subtract(7 - i, 'weeks');
+    const week = new Date();
+    week.setDate(week.getDate() - (7 - i) * 7);
+    const weekNum = isoWeek(week);
+    const weekYear = week.getFullYear();
     const earned = transactions
-      .filter(t => t.type === 'fare_payment' && moment(t.created_date).isSame(week, 'week'))
+      .filter(t => {
+        const td = new Date(t.created_date);
+        return t.type === 'fare_payment' && isoWeek(td) === weekNum && td.getFullYear() === weekYear;
+      })
       .reduce((s, t) => s + t.amount, 0);
-    return { week: `W${week.week()}`, earned };
+    return { week: `W${weekNum}`, earned };
   });
 
   return (

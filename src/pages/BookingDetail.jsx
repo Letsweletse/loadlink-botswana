@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from '@tanstack/react-router';
 import { useAuth } from '@/lib/AuthContext';
+import { supabase } from '@/lib/supabase';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { CATEGORIES, getStatusColor, getStatusLabel, calculateCommission } from '@/lib/fareUtils';
@@ -65,15 +66,32 @@ export default function BookingDetail() {
       alert(`Minimum deposit of P${CATEGORIES[booking.category].deposit} required`); setUpdating(false); return;
     }
     const commission = Math.round(Number(booking.offered_fare ?? booking.fare ?? 0) * 0.10);
-    const updated = await base44.entities.Booking.update(id, {
+    // Atomic accept: only succeeds if the load is still broadcasting at write
+    // time, so two drivers tapping accept on the same load can't both win it.
+    const { data: updated, error } = await supabase
+      .from('loads')
+      .update({
+        status: 'Accepted',
+        driver_email: user.email,
+        driver_phone: user.phone,
+        vehicle_id: vehicle.id,
+        accepted_at: new Date().toISOString(),
+        commission,
+      })
+      .eq('id', id)
+      .eq('status', 'Broadcasting')
+      .select()
+      .maybeSingle();
+    if (error) { alert(error.message); setUpdating(false); return; }
+    if (!updated) { alert('This load was just accepted by another driver.'); setUpdating(false); return; }
+    setBooking(prev => ({
+      ...prev,
       status: 'accepted',
       driver_email: user.email,
       driver_phone: user.phone,
-      vehicle_id: vehicle.id,
-      accepted_at: new Date().toISOString(),
+      accepted_at: updated.accepted_at,
       commission,
-    });
-    setBooking(prev => ({ ...prev, ...updated, status: 'accepted', driver_email: user.email, commission }));
+    }));
     setShowPayment(true);
     setUpdating(false);
   }

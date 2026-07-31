@@ -1,6 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router'
-import Analytics from '@/pages/Analytics'
+import { lazyPage } from '@/components/LazyPage'
 import RequireAuth from '@/components/RequireAuth'
+
+const Analytics = lazyPage(() => import('@/pages/Analytics'))
 
 function ProtectedAnalytics() {
   return (

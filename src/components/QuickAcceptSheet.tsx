@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
+import { supabase } from "@/lib/supabase";
 import { MapPin, Package, X } from "lucide-react";
 import LoadPaymentModal from "./LoadPaymentModal";
 
@@ -54,16 +55,29 @@ export default function QuickAcceptSheet({
   async function accept() {
     setBusy(true); setErr("");
     try {
+      // Atomic, race-safe accept: only succeeds if the load is still
+      // Broadcasting at the moment of the write. If two drivers tap
+      // accept on the same load at once, only the first write matches
+      // the .eq("status","Broadcasting") filter -- the second gets back
+      // zero rows instead of silently overwriting the first driver's claim.
       const commission = Math.round(Number(booking.offer ?? booking.offered_fare ?? 0) * 0.10);
-      const updated = await base44.entities.Booking.update(booking.id, {
-        status: "Accepted",
-        driver: user?.full_name || "Driver",
-        driver_phone: user?.phone,
-        driver_email: driverEmail || user?.email,
-        accepted_at: new Date().toISOString(),
-        commission,
-      });
-      setAcceptedBooking(updated);
+      const { data, error } = await supabase
+        .from("loads")
+        .update({
+          status: "Accepted",
+          driver: user?.full_name || "Driver",
+          driver_phone: user?.phone,
+          driver_email: driverEmail || user?.email,
+          accepted_at: new Date().toISOString(),
+          commission,
+        })
+        .eq("id", booking.id)
+        .eq("status", "Broadcasting")
+        .select()
+        .maybeSingle();
+      if (error) throw new Error(error.message);
+      if (!data) throw new Error("This load was just accepted by another driver.");
+      setAcceptedBooking(data);
     } catch (e: any) {
       setErr(e.message || "Could not accept this load — it may already be taken.");
     }

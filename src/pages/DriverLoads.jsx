@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import useDriverLocation from '@/hooks/useDriverLocation';
-import useDriverNotifications from '@/hooks/useDriverNotifications';
+import { useNotifications } from '@/lib/NotificationsContext';
 import QuickAcceptSheet from '@/components/QuickAcceptSheet';
 import LoadBoardFilters from '@/components/LoadBoardFilters';
 import { useAuth } from '@/lib/AuthContext';
@@ -37,7 +37,7 @@ export default function DriverLoads() {
   }, [user.email]);
 
   const { tracking, startTracking, stopTracking, error: gpsError } = useDriverLocation(vehicle?.id);
-  const { pendingNotification, dismissNotification } = useDriverNotifications(user.email);
+  const { pendingNotification, dismissNotification } = useNotifications();
 
   async function toggleAvailability() {
     if (!vehicle) return;

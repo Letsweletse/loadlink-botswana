@@ -1,6 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router'
-import NewBooking from '@/pages/NewBooking'
+import { lazyPage } from '@/components/LazyPage'
 import RequireAuth from '@/components/RequireAuth'
+
+const NewBooking = lazyPage(() => import('@/pages/NewBooking'))
 
 function ProtectedNewBooking() {
   return (

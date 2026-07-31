@@ -266,7 +266,7 @@ export const base44 = {
       });
     },
     /** Update the signed-in user's profile row (and auth metadata). */
-    async updateMe(patch: { name?: string; phone?: string; role?: string; email?: string; business?: string; address?: string; id_number?: string }) {
+    async updateMe(patch: { name?: string; phone?: string; role?: string; email?: string; business?: string; address?: string; id_number?: string; terms_accepted?: boolean }) {
       if (!supabase) throw new Error("Service unavailable");
       const { data: au } = await supabase.auth.getUser();
       const uid = au.user?.id;
@@ -279,6 +279,10 @@ export const base44 = {
       if (patch.address !== undefined) row.address = patch.address;
       if (patch.phone) row.phone = normalizePhone(patch.phone);
       if (patch.role) row.role = patch.role === "client" ? "customer" : patch.role;
+      if (patch.terms_accepted) {
+        row.terms_accepted_at = new Date().toISOString();
+        row.terms_version = "2026-07-31";
+      }
       row.updated_at = new Date().toISOString();
 
       const { data: existing } = await supabase

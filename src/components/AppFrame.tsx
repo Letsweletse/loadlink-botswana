@@ -10,7 +10,7 @@ import {
   ChevronDown, LogOut, LifeBuoy, BarChart3, Car,
 } from "lucide-react";
 
-const NO_CHROME = new Set(["/login", "/register", "/forgot-password"]);
+const NO_CHROME = new Set(["/login", "/register", "/forgot-password", "/terms"]);
 
 function initialsOf(name?: string) {
   if (!name) return "?";

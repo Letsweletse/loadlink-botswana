@@ -17,6 +17,7 @@ export default function Register() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
+  const [agreed, setAgreed] = useState(false);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -26,6 +27,7 @@ export default function Register() {
     if (phone.replace(/\D/g, '').length < 8) return setError('Enter a valid Botswana phone number');
     if (password.length < 8) return setError('Password must be at least 8 characters');
     if (password !== confirm) return setError('Passwords do not match');
+    if (!agreed) return setError('Please agree to the Terms of Use to continue');
 
     setLoading(true);
     try {
@@ -33,6 +35,7 @@ export default function Register() {
         full_name: fullName.trim(),
         phone: normalizePhone(phone),
         role: role === 'driver' ? 'driver' : 'customer',
+        terms_accepted: true,
       });
       if (res?.session) navigate({ to: '/' });
       else setSent(true);
@@ -138,6 +141,21 @@ export default function Register() {
             <Input className="mt-1.5 h-12 rounded-xl border-[#E5E7EB] bg-white focus-visible:ring-[#C9A05A]"
               type="password" placeholder="Repeat password" value={confirm} onChange={e => setConfirm(e.target.value)} required />
           </div>
+
+          <label className="flex items-start gap-2.5 pt-1">
+            <input
+              type="checkbox"
+              checked={agreed}
+              onChange={e => setAgreed(e.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border-[#E5E7EB] accent-[#C9A05A] shrink-0"
+            />
+            <span className="text-xs text-[#6B7280] leading-5">
+              I agree to Van-Link's{' '}
+              <Link to="/terms" target="_blank" className="text-[#C9A05A] font-semibold hover:underline">
+                Terms of Use
+              </Link>
+            </span>
+          </label>
 
           <Button type="submit" disabled={loading}
             className="w-full h-12 rounded-xl bg-[#C9A05A] hover:bg-[#B08A45] text-white font-bold text-base shadow-md shadow-[#C9A05A]/20">

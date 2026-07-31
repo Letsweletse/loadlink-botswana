@@ -1,6 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useAuth } from "@/lib/AuthContext";
 import { useNotifications } from "@/lib/NotificationsContext";
+import InstallPrompt from "@/components/InstallPrompt";
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent,
   DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator,
@@ -32,9 +33,15 @@ export default function AppFrame({ children }: { children: React.ReactNode }) {
   // instance, which crashes the whole tree (AppFrame wraps every route).
   const { unread } = useNotifications();
 
-  // Keep login/register pages clean
+  // Keep login/register pages clean, but still offer the install prompt --
+  // that's exactly where a first-time visitor lands.
   if (NO_CHROME.has(path)) {
-    return <>{children}</>;
+    return (
+      <>
+        {children}
+        <InstallPrompt />
+      </>
+    );
   }
 
   // Show loading while authentication resolves
@@ -261,6 +268,8 @@ export default function AppFrame({ children }: { children: React.ReactNode }) {
 
         </nav>
       )}
+
+      <InstallPrompt />
 
     </div>
   );

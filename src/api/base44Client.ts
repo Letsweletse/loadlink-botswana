@@ -8,7 +8,6 @@ export function normalizePhone(v?: string) {
   return String(v || "").trim();
 }
 
-// Map UI category keys <-> db enum (mini|medium|big)
 const CAT_TO_DB: Record<string, string> = {
   under_2ton: "mini", medium_7ton: "medium", big_over_7ton: "big", plant_machinery: "plant",
   mini: "mini", medium: "medium", big: "big", plant: "plant",
@@ -17,7 +16,6 @@ const DB_TO_CAT: Record<string, string> = {
   mini: "under_2ton", medium: "medium_7ton", big: "big_over_7ton", plant: "plant_machinery",
 };
 
-// Map UI status <-> db status
 const ST_TO_DB: Record<string, string> = {
   broadcasting: "Broadcasting", accepted: "Accepted", picked_up: "Collected",
   in_transit: "Collected", delivered: "Delivered", completed: "Delivered",
@@ -51,6 +49,10 @@ function loadOut(r: any) {
     picked_up_at: r.picked_up_at,
     delivered_at: r.delivered_at,
     driver_email: r.driver_email,
+    driver_delivery_confirmed: Boolean(r.driver_delivery_confirmed),
+    client_delivery_confirmed: Boolean(r.client_delivery_confirmed),
+    driver_delivery_confirmed_at: r.driver_delivery_confirmed_at,
+    client_delivery_confirmed_at: r.client_delivery_confirmed_at,
   };
 }
 
@@ -105,9 +107,7 @@ function entity(table: string, mapOut = (x: any) => x, mapIn = (x: any) => x, id
       if (error) { console.warn(`[${table}] filter`, error.message); return []; }
       return (data ?? []).map(mapOut);
     },
-    async list(order = "-created_at", limit = 50) {
-      return this.filter({}, order, limit);
-    },
+    async list(order = "-created_at", limit = 50) { return this.filter({}, order, limit); },
     async get(id: string) {
       if (!supabase) return null;
       const { data, error } = await supabase.from(table).select("*").eq(idCol, id).maybeSingle();
@@ -216,8 +216,7 @@ export const base44 = {
     async signUpWithEmailPassword(email: string, password: string, meta: Record<string, any> = {}) {
       if (!supabase) throw new Error("Service unavailable");
       const { data, error } = await supabase.auth.signUp({
-        email: email.trim().toLowerCase(),
-        password,
+        email: email.trim().toLowerCase(), password,
         options: { data: meta, emailRedirectTo: `${window.location.origin}/` },
       });
       if (error) throw new Error(error.message);
@@ -225,53 +224,31 @@ export const base44 = {
     },
     async loginViaEmailPassword(email: string, password: string) {
       if (!supabase) throw new Error("Service unavailable");
-      const { error } = await supabase.auth.signInWithPassword({
-        email: email.trim().toLowerCase(),
-        password,
-      });
+      const { error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
       if (!error) return;
       const m = (error.message || "").toLowerCase();
-      if (m.includes("email not confirmed")) {
-        throw new Error("Please confirm your email first — check your inbox for the link we sent.");
-      }
-      if (m.includes("invalid login credentials")) {
-        throw new Error(
-          "Email or password is incorrect. If you signed up with Google, use the \u201CContinue with Google\u201D button below."
-        );
-      }
+      if (m.includes("email not confirmed")) throw new Error("Please confirm your email first — check your inbox for the link we sent.");
+      if (m.includes("invalid login credentials")) throw new Error("Email or password is incorrect. If you signed up with Google, use the “Continue with Google” button below.");
       throw new Error(error.message);
     },
-
-    /** Resend the signup confirmation email. */
     async resendConfirmation(email: string) {
       if (!supabase) throw new Error("Service unavailable");
-      const { error } = await supabase.auth.resend({
-        type: "signup",
-        email: email.trim().toLowerCase(),
-        options: { emailRedirectTo: `${window.location.origin}/` },
-      });
+      const { error } = await supabase.auth.resend({ type: "signup", email: email.trim().toLowerCase(), options: { emailRedirectTo: `${window.location.origin}/` } });
       if (error) throw new Error(error.message);
     },
     async resetPassword(email: string) {
       if (!supabase) throw new Error("Service unavailable");
-      const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
-        redirectTo: `${window.location.origin}/login`,
-      });
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), { redirectTo: `${window.location.origin}/login` });
       if (error) throw new Error(error.message);
     },
     loginWithProvider(provider: "google") {
-      supabase?.auth.signInWithOAuth({
-        provider,
-        options: { redirectTo: window.location.origin, queryParams: { prompt: "select_account" } },
-      });
+      supabase?.auth.signInWithOAuth({ provider, options: { redirectTo: window.location.origin, queryParams: { prompt: "select_account" } } });
     },
-    /** Update the signed-in user's profile row (and auth metadata). */
     async updateMe(patch: { name?: string; phone?: string; role?: string; email?: string; business?: string; address?: string; id_number?: string; terms_accepted?: boolean }) {
       if (!supabase) throw new Error("Service unavailable");
       const { data: au } = await supabase.auth.getUser();
       const uid = au.user?.id;
       if (!uid) throw new Error("Not signed in");
-
       const row: any = {};
       if (patch.name !== undefined) row.name = patch.name;
       if (patch.email !== undefined) row.email = patch.email;
@@ -279,15 +256,9 @@ export const base44 = {
       if (patch.address !== undefined) row.address = patch.address;
       if (patch.phone) row.phone = normalizePhone(patch.phone);
       if (patch.role) row.role = patch.role === "client" ? "customer" : patch.role;
-      if (patch.terms_accepted) {
-        row.terms_accepted_at = new Date().toISOString();
-        row.terms_version = "2026-07-31";
-      }
+      if (patch.terms_accepted) { row.terms_accepted_at = new Date().toISOString(); row.terms_version = "2026-07-31"; }
       row.updated_at = new Date().toISOString();
-
-      const { data: existing } = await supabase
-        .from("profiles").select("id").eq("user_id", uid).limit(1).maybeSingle();
-
+      const { data: existing } = await supabase.from("profiles").select("id").eq("user_id", uid).limit(1).maybeSingle();
       if (existing) {
         const { error } = await supabase.from("profiles").update(row).eq("id", existing.id);
         if (error) throw new Error(error.message.includes("duplicate") ? "That phone number is already registered." : error.message);
@@ -295,20 +266,9 @@ export const base44 = {
         const { error } = await supabase.from("profiles").insert({ ...row, user_id: uid });
         if (error) throw new Error(error.message.includes("duplicate") ? "That phone number is already registered." : error.message);
       }
-
-      await supabase.auth.updateUser({
-        data: {
-          ...(patch.name ? { full_name: patch.name } : {}),
-          ...(patch.phone ? { phone: normalizePhone(patch.phone) } : {}),
-          ...(patch.role ? { role: patch.role === "client" ? "customer" : patch.role } : {}),
-        },
-      }).catch(() => null);
-
+      await supabase.auth.updateUser({ data: { ...(patch.name ? { full_name: patch.name } : {}), ...(patch.phone ? { phone: normalizePhone(patch.phone) } : {}), ...(patch.role ? { role: patch.role === "client" ? "customer" : patch.role } : {}) } }).catch(() => null);
       return true;
     },
-
-    logout() {
-      return supabase?.auth.signOut();
-    },
+    logout() { return supabase?.auth.signOut(); },
   },
 };

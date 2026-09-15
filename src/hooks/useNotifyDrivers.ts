@@ -5,21 +5,24 @@ const CAT_DB: Record<string, string> = {
   under_2ton: "mini", medium_7ton: "medium", big_over_7ton: "big", plant_machinery: "plant",
 };
 
-/** Notifies every approved driver whose vehicle matches the load's category.
- *  Fires a `new_load` Notification row per driver, which the realtime
- *  subscription in useDriverNotifications turns into the accept popup. */
+/** Notify approved/verified drivers whose vehicle matches the load category. */
 export async function notifyMatchingDrivers(booking: any) {
   if (!supabase || !booking?.id) return;
   try {
     const cat = CAT_DB[booking.category] || booking.category;
 
+    // The admin UI has historically used both "approved" and "verified".
+    // Accept both so a valid driver is never silently missed by a broadcast.
     const { data: trucks, error: truckErr } = await supabase
       .from("trucks")
-      .select("phone, driver_email")
+      .select("phone, driver_email, status")
       .eq("category", cat)
-      .eq("status", "approved");
-    if (truckErr) { console.warn("notifyMatchingDrivers: trucks query", truckErr.message); return; }
-    if (!trucks?.length) return; // no approved vehicle of this category yet — nobody to notify
+      .in("status", ["approved", "verified"]);
+    if (truckErr) {
+      console.warn("notifyMatchingDrivers: trucks query", truckErr.message);
+      return;
+    }
+    if (!trucks?.length) return;
 
     const phones = new Set(trucks.map(t => t.phone).filter(Boolean));
     const emails = new Set(trucks.map(t => t.driver_email).filter(Boolean));
@@ -28,7 +31,10 @@ export async function notifyMatchingDrivers(booking: any) {
       .from("profiles")
       .select("user_id, phone, email")
       .eq("role", "driver");
-    if (profErr) { console.warn("notifyMatchingDrivers: profiles query", profErr.message); return; }
+    if (profErr) {
+      console.warn("notifyMatchingDrivers: profiles query", profErr.message);
+      return;
+    }
 
     const targets = (profs ?? []).filter(p => phones.has(p.phone) || (p.email && emails.has(p.email)));
     if (!targets.length) return;
@@ -53,4 +59,5 @@ export async function notifyMatchingDrivers(booking: any) {
     console.warn("notifyMatchingDrivers failed (non-fatal — booking still created)", e);
   }
 }
+
 export default notifyMatchingDrivers;

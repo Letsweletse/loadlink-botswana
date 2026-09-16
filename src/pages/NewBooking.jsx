@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import { useAuth } from '@/lib/AuthContext';
 import { useNavigate } from '@tanstack/react-router';
 import { Button } from '@/components/ui/button';
@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { CATEGORIES, calculateFare } from '@/lib/fareUtils';
-import { ArrowLeft, AlertCircle } from 'lucide-react';
+import { ArrowLeft, AlertCircle, Check, Loader2 } from 'lucide-react';
 import { Link } from '@tanstack/react-router';
 
 export default function NewBooking() {
@@ -26,14 +26,21 @@ export default function NewBooking() {
   const [fareAdjust, setFareAdjust] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
 
   const distance = parseFloat(form.dropoff_distance_km) || 0;
   const baseFare = form.category ? calculateFare(form.category, distance) : 0;
   const offeredFare = Math.max(0, baseFare + fareAdjust);
 
+  // Check if form is complete
+  const isComplete = form.pickup_address.trim() && form.dropoff_address.trim() && 
+                     form.dropoff_distance_km && form.category && 
+                     form.goods_description.trim() && form.client_phone.trim();
+
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
+    setSuccess(false);
     setSubmitting(true);
 
     try {
@@ -49,7 +56,6 @@ export default function NewBooking() {
         stops,
       };
 
-      // Call backend - all validation happens there
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const response = await fetch(`${supabaseUrl}/functions/v1/broadcast-request`, {
         method: 'POST',
@@ -65,37 +71,56 @@ export default function NewBooking() {
         throw new Error(data.error || 'Failed to broadcast');
       }
 
-      navigate({ to: '/my-bookings' });
+      setSuccess(true);
+      setTimeout(() => navigate({ to: '/my-bookings' }), 1500);
     } catch (err) {
-      setError(err.message || 'Failed to broadcast. Try again.');
+      setError(err.message || 'Failed. Try again.');
       setSubmitting(false);
     }
   }
 
   return (
-    <div className="max-w-lg mx-auto bg-[#F9FAFB] min-h-screen pb-32">
-      <div className="bg-[#3D2B0E] px-3 sm:px-4 pt-10 sm:pt-12 pb-5 sm:pb-6">
-        <div className="flex items-center gap-2 sm:gap-3">
-          <Link to="/" className="h-8 sm:h-9 w-8 sm:w-9 rounded-lg sm:rounded-xl bg-white/10 flex items-center justify-center">
-            <ArrowLeft className="h-4 w-4 text-white" />
+    <div className="max-w-lg mx-auto bg-[#F9FAFB] min-h-screen pb-40 md:pb-16">
+      {/* Header */}
+      <div className="bg-[#3D2B0E] px-4 pt-10 pb-6 sticky top-0 z-50">
+        <div className="flex items-center gap-3">
+          <Link to="/" className="h-9 w-9 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors active:scale-95">
+            <ArrowLeft className="h-5 w-5 text-white" />
           </Link>
-          <h1 className="text-base sm:text-lg font-extrabold text-white">Book Transport</h1>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-white/50">New Request</p>
+            <h1 className="text-xl font-extrabold text-white">Book Transport</h1>
+          </div>
         </div>
       </div>
 
-      <div className="p-3 sm:p-4">
-        <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-5">
-          {error && (
-            <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex gap-2">
-              <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0" />
-              <p className="text-sm font-semibold text-red-900">{error}</p>
-            </div>
-          )}
+      {/* Success Message */}
+      {success && (
+        <div className="mx-4 mt-4 bg-green-50 border border-green-200 rounded-2xl p-4 flex items-center gap-3">
+          <Check className="h-5 w-5 text-green-600 flex-shrink-0" />
+          <div>
+            <p className="font-bold text-green-900 text-sm">Request sent!</p>
+            <p className="text-xs text-green-700">Redirecting...</p>
+          </div>
+        </div>
+      )}
 
-          <div className="bg-white border border-[#E5E7EB] rounded-xl p-3 sm:p-4">
-            <Label className="text-xs font-semibold text-[#6B7280]">Pickup Location *</Label>
+      {/* Error Message */}
+      {error && (
+        <div className="mx-4 mt-4 bg-red-50 border border-red-200 rounded-2xl p-4 flex items-start gap-3">
+          <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+          <p className="text-sm font-semibold text-red-900">{error}</p>
+        </div>
+      )}
+
+      {/* Form */}
+      <div className="p-4 space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Pickup */}
+          <div className="bg-white border border-[#E5E7EB] rounded-2xl p-4 shadow-sm">
+            <Label className="text-xs font-semibold text-[#6B7280] uppercase tracking-wider">Pickup Location *</Label>
             <Input
-              className="mt-1 h-10 sm:h-11 rounded-lg text-sm"
+              className="mt-2 h-12 rounded-xl text-base bg-[#F9FAFB] border-[#E5E7EB] placeholder-[#9CA3AF]"
               placeholder="e.g. Game City, Gaborone"
               value={form.pickup_address}
               onChange={e => setForm(prev => ({ ...prev, pickup_address: e.target.value }))}
@@ -103,10 +128,11 @@ export default function NewBooking() {
             />
           </div>
 
-          <div className="bg-white border border-[#E5E7EB] rounded-xl p-3 sm:p-4">
-            <Label className="text-xs font-semibold text-[#6B7280]">Drop-off Location *</Label>
+          {/* Dropoff */}
+          <div className="bg-white border border-[#E5E7EB] rounded-2xl p-4 shadow-sm">
+            <Label className="text-xs font-semibold text-[#6B7280] uppercase tracking-wider">Dropoff Location *</Label>
             <Input
-              className="mt-1 h-10 sm:h-11 rounded-lg text-sm"
+              className="mt-2 h-12 rounded-xl text-base bg-[#F9FAFB] border-[#E5E7EB] placeholder-[#9CA3AF]"
               placeholder="e.g. Francistown CBD"
               value={form.dropoff_address}
               onChange={e => setForm(prev => ({ ...prev, dropoff_address: e.target.value }))}
@@ -114,23 +140,62 @@ export default function NewBooking() {
             />
           </div>
 
-          <div className="bg-white border border-[#E5E7EB] rounded-xl p-3 sm:p-4">
-            <Label className="text-xs font-semibold text-[#6B7280]">Distance (km) *</Label>
+          {/* Category */}
+          {!form.category ? (
+            <div className="bg-white border border-[#E5E7EB] rounded-2xl p-4 shadow-sm">
+              <Label className="text-xs font-semibold text-[#6B7280] uppercase tracking-wider">Truck Type *</Label>
+              <div className="grid grid-cols-2 gap-2 mt-2">
+                {Object.entries(CATEGORIES).map(([key, cat]) => (
+                  <button
+                    key={key}
+                    onClick={() => setForm(prev => ({ ...prev, category: key }))}
+                    type="button"
+                    className="p-3 rounded-xl border-2 border-[#E5E7EB] hover:border-[#C9A05A] hover:bg-[#FFF8EC] transition-all text-center"
+                  >
+                    <p className="text-2xl">{cat.icon}</p>
+                    <p className="text-xs font-bold text-[#3D2B0E] mt-1">{cat.label}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="bg-white border-2 border-[#C9A05A] rounded-2xl p-4 shadow-sm flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="text-3xl">{CATEGORIES[form.category]?.icon}</span>
+                <div>
+                  <p className="text-sm font-bold text-[#3D2B0E]">{CATEGORIES[form.category]?.label}</p>
+                  <p className="text-xs text-[#6B7280]">{CATEGORIES[form.category]?.desc}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setForm(prev => ({ ...prev, category: '' }))}
+                className="text-[#9CA3AF] hover:text-[#6B7280] text-lg"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
+          {/* Distance */}
+          <div className="bg-white border border-[#E5E7EB] rounded-2xl p-4 shadow-sm">
+            <Label className="text-xs font-semibold text-[#6B7280] uppercase tracking-wider">Distance (km) *</Label>
             <Input
               type="number"
               min="0.1"
               step="0.1"
-              className="mt-1 h-10 sm:h-11 rounded-lg text-sm"
+              className="mt-2 h-12 rounded-xl text-base bg-[#F9FAFB] border-[#E5E7EB]"
+              placeholder="Distance to destination"
               value={form.dropoff_distance_km}
               onChange={e => setForm(prev => ({ ...prev, dropoff_distance_km: e.target.value }))}
               required
             />
           </div>
 
-          <div className="bg-white border border-[#E5E7EB] rounded-xl p-3 sm:p-4">
-            <Label className="text-xs font-semibold text-[#6B7280]">What are you transporting? *</Label>
+          {/* Goods */}
+          <div className="bg-white border border-[#E5E7EB] rounded-2xl p-4 shadow-sm">
+            <Label className="text-xs font-semibold text-[#6B7280] uppercase tracking-wider">What are you transporting? *</Label>
             <Textarea
-              className="mt-2 rounded-lg text-sm resize-none"
+              className="mt-2 rounded-xl text-base bg-[#F9FAFB] border-[#E5E7EB] resize-none"
               placeholder="e.g. 3 sofas and a fridge"
               value={form.goods_description}
               onChange={e => setForm(prev => ({ ...prev, goods_description: e.target.value }))}
@@ -139,33 +204,66 @@ export default function NewBooking() {
             />
           </div>
 
-          <div className="bg-white border border-[#E5E7EB] rounded-xl p-3 sm:p-4">
-            <Label className="text-xs font-semibold text-[#6B7280]">Phone Number *</Label>
+          {/* Phone */}
+          <div className="bg-white border border-[#E5E7EB] rounded-2xl p-4 shadow-sm">
+            <Label className="text-xs font-semibold text-[#6B7280] uppercase tracking-wider">Phone Number *</Label>
             <Input
-              className="mt-2 h-10 sm:h-11 rounded-lg text-sm"
+              className="mt-2 h-12 rounded-xl text-base bg-[#F9FAFB] border-[#E5E7EB]"
               placeholder="+267 7X XXX XXX"
               value={form.client_phone}
               onChange={e => setForm(prev => ({ ...prev, client_phone: e.target.value }))}
               required
             />
           </div>
+
+          {/* Pricing Summary */}
+          {form.category && (
+            <div className="bg-gradient-to-r from-[#FFF8EC] to-[#FFFBF3] border border-[#C9A05A]/20 rounded-2xl p-4">
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-[#6B7280]">Base fare</span>
+                  <span className="font-semibold text-[#3D2B0E]">P{baseFare}</span>
+                </div>
+                {fareAdjust !== 0 && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-[#6B7280]">Adjustment</span>
+                    <span className={`font-semibold ${fareAdjust > 0 ? 'text-[#C9A05A]' : 'text-red-500'}`}>
+                      {fareAdjust > 0 ? '+' : ''}P{fareAdjust}
+                    </span>
+                  </div>
+                )}
+                <div className="border-t border-[#C9A05A]/20 pt-2 flex justify-between items-center">
+                  <span className="font-bold text-[#3D2B0E]">Total offer</span>
+                  <span className="text-2xl font-extrabold text-[#C9A05A]">P{offeredFare}</span>
+                </div>
+              </div>
+            </div>
+          )}
         </form>
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#E5E7EB] px-3 sm:px-4 py-3 max-w-lg mx-auto">
+      {/* CTA Button - Fixed Bottom */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#E5E7EB] px-4 py-3 pb-safe max-w-lg mx-auto shadow-2xl">
         <Button
           type="submit"
           onClick={handleSubmit}
-          className="w-full h-12 sm:h-14 text-base font-extrabold rounded-lg sm:rounded-2xl bg-[#C9A05A] hover:bg-[#B08A45] text-white shadow-lg disabled:opacity-50"
-          disabled={submitting || !form.category}
+          disabled={submitting || !isComplete}
+          className={`w-full h-14 text-base font-extrabold rounded-2xl transition-all active:scale-95 ${
+            isComplete
+              ? 'bg-[#C9A05A] hover:bg-[#B08A45] text-white shadow-lg shadow-[#C9A05A]/30'
+              : 'bg-[#E5E7EB] text-[#9CA3AF] cursor-not-allowed'
+          }`}
         >
           {submitting ? (
             <span className="flex items-center justify-center gap-2">
-              <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              Broadcasting…
+              <Loader2 className="h-5 w-5 animate-spin" />
+              Broadcasting...
             </span>
           ) : (
-            `📡 Broadcast — P${offeredFare}`
+            <>
+              <span className="text-lg">📡</span>
+              <span className="ml-2">Broadcast Request — P{offeredFare}</span>
+            </>
           )}
         </Button>
       </div>

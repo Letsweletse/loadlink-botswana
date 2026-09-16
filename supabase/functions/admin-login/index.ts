@@ -4,38 +4,90 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "Content-Type",
 };
 
-serve(async (req: Request) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
 
   try {
-    const body = await req.json();
-    const { email, password } = body;
+    const { email, password } = await req.json();
 
+    // Validation
     if (!email?.trim()) throw new Error("Email required");
     if (!password?.trim()) throw new Error("Password required");
+    if (!email.includes("@")) throw new Error("Invalid email");
 
-    const supabase = createClient(Deno.env.get("SUPABASE_URL") || "", Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "");
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { data, error: authError } = await supabase.auth.signInWithPassword({
-      email: email.toLowerCase().trim(),
+    // Authenticate with Supabase Auth
+    const { data: { session }, error: authError } = await supabase.auth.signInWithPassword({
+      email,
       password,
     });
 
-    if (authError || !data?.user) return new Response(JSON.stringify({ error: "Authentication failed" }), { status: 401, headers: corsHeaders });
+    if (authError || !session?.user) {
+      return new Response(JSON.stringify({ error: "Invalid credentials" }), {
+        status: 401,
+        headers: corsHeaders,
+      });
+    }
 
-    const { data: profile } = await supabase.from("profiles").select("id, role").eq("user_id", data.user.id).single();
+    // Verify admin role
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("role, name")
+      .eq("user_id", session.user.id)
+      .single();
 
-    if (!profile || profile.role !== "admin") return new Response(JSON.stringify({ error: "Admin access denied" }), { status: 403, headers: corsHeaders });
+    if (profileError || !profile) {
+      return new Response(JSON.stringify({ error: "User profile not found" }), {
+        status: 404,
+        headers: corsHeaders,
+      });
+    }
 
-    return new Response(JSON.stringify({
-      success: true,
-      user: { id: data.user.id, email: data.user.email, role: profile.role },
-      session: { access_token: data.session?.access_token, expires_in: data.session?.expires_in },
-    }), { status: 200, headers: corsHeaders });
+    if (profile.role !== "admin") {
+      return new Response(JSON.stringify({ error: "Admin access required" }), {
+        status: 403,
+        headers: corsHeaders,
+      });
+    }
+
+    // Create audit log
+    await supabase.from("admin_audit_logs").insert({
+      admin_email: email,
+      admin_name: profile.name,
+      action: "login",
+      ip_address: req.headers.get("x-forwarded-for") || "unknown",
+      timestamp: new Date().toISOString(),
+    }).catch(() => {
+      // Silently fail audit log if table doesn't exist
+    });
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        session: {
+          access_token: session.access_token,
+          refresh_token: session.refresh_token,
+          expires_at: session.expires_at,
+          user_email: session.user.email,
+          admin_name: profile.name,
+        },
+        message: "Admin login successful",
+      }),
+      { status: 200, headers: corsHeaders }
+    );
   } catch (error: any) {
-    return new Response(JSON.stringify({ error: "Authentication failed" }), { status: 401, headers: corsHeaders });
+    console.error("Error:", error);
+    return new Response(JSON.stringify({ error: error.message || "Server error" }), {
+      status: 400,
+      headers: corsHeaders,
+    });
   }
 });

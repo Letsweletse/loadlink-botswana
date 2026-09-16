@@ -1,69 +1,98 @@
 import { useState } from 'react';
-import { base44, normalizePhone } from '@/api/base44Client';
+import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Link, useNavigate } from '@tanstack/react-router';
-import { Truck, Check } from 'lucide-react';
+import { Link } from '@tanstack/react-router';
+import { Truck, AlertCircle, Check } from 'lucide-react';
 
 export default function Register() {
-  const navigate = useNavigate();
-  const [fullName, setFullName] = useState('');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
-  const [role, setRole] = useState('client');
-  const [password, setPassword] = useState('');
-  const [confirm, setConfirm] = useState('');
+  const [step, setStep] = useState('details'); // details, confirm
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    password: '',
+    phone: '',
+    role: 'customer',
+  });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [sent, setSent] = useState(false);
-  const [agreed, setAgreed] = useState(false);
+  const [success, setSuccess] = useState(false);
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
-
-    if (!fullName.trim()) return setError('Enter your full name');
-    if (phone.replace(/\D/g, '').length < 8) return setError('Enter a valid Botswana phone number');
-    if (password.length < 8) return setError('Password must be at least 8 characters');
-    if (password !== confirm) return setError('Passwords do not match');
-    if (!agreed) return setError('Please agree to the Terms of Use to continue');
-
     setLoading(true);
+
     try {
-      const res = await base44.auth.signUpWithEmailPassword(email, password, {
-        full_name: fullName.trim(),
-        phone: normalizePhone(phone),
-        role: role === 'driver' ? 'driver' : 'customer',
-        terms_accepted: true,
+      // Validate
+      if (!formData.name.trim()) throw new Error('Name required');
+      if (!formData.email.trim()) throw new Error('Email required');
+      if (formData.password.length < 8) throw new Error('Password must be 8+ characters');
+      if (!formData.phone.trim()) throw new Error('Phone required');
+
+      // Sign up
+      await base44.auth.signUpWithEmailPassword(formData.email, formData.password, {
+        full_name: formData.name,
+        phone: formData.phone,
+        role: formData.role,
       });
-      if (res?.session) navigate({ to: '/' });
-      else setSent(true);
+
+      // Create profile
+      await base44.auth.updateMe({
+        name: formData.name,
+        phone: formData.phone,
+        role: formData.role,
+      });
+
+      setSuccess(true);
+      setStep('confirm');
     } catch (err) {
-      setError(err.message || 'Could not create your account. Please try again.');
+      setError(err.message || 'Sign up failed');
+      setLoading(false);
     }
-    setLoading(false);
   }
 
-  if (sent) {
+  if (success) {
     return (
-      <div className="min-h-screen bg-[#F9FAFB] flex flex-col">
+      <div className="min-h-screen flex flex-col bg-[#F9FAFB]">
         <div className="bg-[#3D2B0E] px-5 pt-12 pb-10">
-          <p className="font-extrabold text-white tracking-tight text-lg">Van-Link</p>
-        </div>
-        <div className="flex-1 px-5 pt-10 max-w-sm w-full mx-auto text-center">
-          <div className="h-14 w-14 rounded-2xl bg-[#F0FDF4] flex items-center justify-center mx-auto mb-4">
-            <Check className="h-7 w-7 text-[#16A34A]" />
+          <div className="flex items-center gap-3 mb-6">
+            <div className="h-10 w-10 rounded-xl bg-[#C9A05A] flex items-center justify-center">
+              <Truck className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <p className="font-extrabold text-white tracking-tight text-lg leading-none">Van-Link</p>
+              <p className="text-[11px] text-white/50 mt-0.5">Goods transport across Botswana</p>
+            </div>
           </div>
-          <h1 className="text-2xl font-extrabold text-[#3D2B0E] tracking-tight">Check your email</h1>
-          <p className="text-sm text-[#6B7280] mt-2 leading-6">
-            We sent a confirmation link to <span className="font-semibold text-[#3D2B0E]">{email}</span>.
-            Tap it to activate your account, then sign in.
+        </div>
+
+        <div className="flex-1 px-5 pt-12 pb-10 max-w-sm w-full mx-auto text-center">
+          <div className="bg-green-50 border border-green-200 rounded-2xl p-8 mb-6">
+            <Check className="h-12 w-12 text-green-600 mx-auto mb-4" />
+            <h2 className="text-xl font-bold text-green-900 mb-2">Check your email!</h2>
+            <p className="text-sm text-green-700 mb-4">
+              We sent a confirmation link to <strong>{formData.email}</strong>
+            </p>
+            <p className="text-xs text-green-600">Click the link in the email to confirm your account.</p>
+          </div>
+
+          <p className="text-sm text-[#6B7280] mb-4">
+            Didn't get the email? Check your spam folder or{' '}
+            <button
+              onClick={() => {
+                setError('');
+                base44.auth.resendConfirmation(formData.email).catch(err => setError(err.message));
+              }}
+              className="text-[#C9A05A] font-semibold hover:underline"
+            >
+              resend it
+            </button>
           </p>
-          <Link to="/login">
-            <Button className="mt-6 w-full h-12 rounded-xl bg-[#C9A05A] hover:bg-[#B08A45] text-white font-bold">
-              Go to sign in
-            </Button>
+
+          <Link to="/login" className="text-[#C9A05A] font-semibold hover:underline">
+            Back to login
           </Link>
         </div>
       </div>
@@ -79,7 +108,7 @@ export default function Register() {
           </div>
           <div>
             <p className="font-extrabold text-white tracking-tight text-lg leading-none">Van-Link</p>
-            <p className="text-[11px] text-white/50 mt-0.5">Goods transport across Botswana &amp; SACU</p>
+            <p className="text-[11px] text-white/50 mt-0.5">Goods transport across Botswana</p>
           </div>
         </div>
         <h1 className="text-2xl font-extrabold text-white tracking-tight">Create account</h1>
@@ -89,95 +118,100 @@ export default function Register() {
       <div className="flex-1 px-5 pt-8 pb-10 max-w-sm w-full mx-auto">
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 text-sm p-3 rounded-xl">{error}</div>
+            <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+              <p className="text-sm font-semibold text-red-900">{error}</p>
+            </div>
           )}
 
           <div>
-            <Label className="text-xs font-semibold uppercase tracking-wide text-[#6B7280]">I am a</Label>
-            <div className="grid grid-cols-2 gap-2 mt-1.5">
-              {[['client', 'Client'], ['driver', 'Driver']].map(([val, label]) => (
-                <button
-                  key={val} type="button" onClick={() => setRole(val)}
-                  className={`h-12 rounded-xl border font-semibold text-sm transition-colors ${
-                    role === val
-                      ? 'bg-[#C9A05A] border-[#C9A05A] text-white'
-                      : 'bg-white border-[#E5E7EB] text-[#3D2B0E]'
-                  }`}
-                >{label}</button>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <Label className="text-xs font-semibold uppercase tracking-wide text-[#6B7280]">Full name</Label>
-            <Input className="mt-1.5 h-12 rounded-xl border-[#E5E7EB] bg-white focus-visible:ring-[#C9A05A]"
-              placeholder="Letsweletse Seatla" value={fullName} onChange={e => setFullName(e.target.value)} required />
+            <Label className="text-xs font-semibold uppercase tracking-wide text-[#6B7280]">Full Name</Label>
+            <Input
+              className="mt-1.5 h-12 rounded-xl border-[#E5E7EB] bg-white text-[#3D2B0E]"
+              placeholder="Your full name"
+              value={formData.name}
+              onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))}
+              required
+              disabled={loading}
+            />
           </div>
 
           <div>
             <Label className="text-xs font-semibold uppercase tracking-wide text-[#6B7280]">Email</Label>
-            <Input className="mt-1.5 h-12 rounded-xl border-[#E5E7EB] bg-white focus-visible:ring-[#C9A05A]"
-              type="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} required />
+            <Input
+              className="mt-1.5 h-12 rounded-xl border-[#E5E7EB] bg-white text-[#3D2B0E]"
+              type="email"
+              placeholder="you@example.com"
+              value={formData.email}
+              onChange={e => setFormData(prev => ({ ...prev, email: e.target.value }))}
+              required
+              disabled={loading}
+            />
           </div>
 
           <div>
-            <Label className="text-xs font-semibold uppercase tracking-wide text-[#6B7280]">Phone</Label>
-            <div className="mt-1.5 flex items-center gap-2">
-              <span className="h-12 px-3 flex items-center rounded-xl border border-[#E5E7EB] bg-white text-sm font-semibold text-[#3D2B0E] shrink-0">🇧🇼 +267</span>
-              <Input className="h-12 rounded-xl border-[#E5E7EB] bg-white focus-visible:ring-[#C9A05A]"
-                type="tel" inputMode="numeric" placeholder="75 123 456" value={phone}
-                onChange={e => setPhone(e.target.value.replace(/\D/g, '').slice(0, 8))} required />
-            </div>
+            <Label className="text-xs font-semibold uppercase tracking-wide text-[#6B7280]">Phone Number</Label>
+            <Input
+              className="mt-1.5 h-12 rounded-xl border-[#E5E7EB] bg-white text-[#3D2B0E]"
+              placeholder="+267 7X XXX XXX"
+              value={formData.phone}
+              onChange={e => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+              required
+              disabled={loading}
+            />
           </div>
 
           <div>
             <Label className="text-xs font-semibold uppercase tracking-wide text-[#6B7280]">Password</Label>
-            <Input className="mt-1.5 h-12 rounded-xl border-[#E5E7EB] bg-white focus-visible:ring-[#C9A05A]"
-              type="password" placeholder="Min. 8 characters" value={password} onChange={e => setPassword(e.target.value)} required />
+            <Input
+              className="mt-1.5 h-12 rounded-xl border-[#E5E7EB] bg-white text-[#3D2B0E]"
+              type="password"
+              placeholder="Min 8 characters"
+              value={formData.password}
+              onChange={e => setFormData(prev => ({ ...prev, password: e.target.value }))}
+              required
+              disabled={loading}
+            />
           </div>
 
           <div>
-            <Label className="text-xs font-semibold uppercase tracking-wide text-[#6B7280]">Confirm password</Label>
-            <Input className="mt-1.5 h-12 rounded-xl border-[#E5E7EB] bg-white focus-visible:ring-[#C9A05A]"
-              type="password" placeholder="Repeat password" value={confirm} onChange={e => setConfirm(e.target.value)} required />
+            <Label className="text-xs font-semibold uppercase tracking-wide text-[#6B7280]">I am a</Label>
+            <div className="grid grid-cols-2 gap-2 mt-2">
+              {[
+                { value: 'customer', label: 'Customer 👤' },
+                { value: 'driver', label: 'Driver 🚚' },
+              ].map(opt => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setFormData(prev => ({ ...prev, role: opt.value }))}
+                  className={`py-3 rounded-xl border-2 font-semibold text-sm transition-all ${
+                    formData.role === opt.value
+                      ? 'border-[#C9A05A] bg-[#FFF8EC] text-[#3D2B0E]'
+                      : 'border-[#E5E7EB] bg-white text-[#6B7280] hover:border-[#C9A05A]'
+                  }`}
+                  disabled={loading}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
           </div>
 
-          <label className="flex items-start gap-2.5 pt-1">
-            <input
-              type="checkbox"
-              checked={agreed}
-              onChange={e => setAgreed(e.target.checked)}
-              className="mt-0.5 h-4 w-4 rounded border-[#E5E7EB] accent-[#C9A05A] shrink-0"
-            />
-            <span className="text-xs text-[#6B7280] leading-5">
-              I agree to Van-Link's{' '}
-              <Link to="/terms" target="_blank" className="text-[#C9A05A] font-semibold hover:underline">
-                Terms of Use
-              </Link>
-            </span>
-          </label>
-
-          <Button type="submit" disabled={loading}
-            className="w-full h-12 rounded-xl bg-[#C9A05A] hover:bg-[#B08A45] text-white font-bold text-base shadow-md shadow-[#C9A05A]/20">
-            {loading ? 'Creating account…' : 'Create Account'}
-          </Button>
-
-          <div className="relative flex items-center gap-3 py-1">
-            <div className="flex-1 h-px bg-[#E5E7EB]" />
-            <span className="text-xs text-[#9CA3AF] font-medium">or</span>
-            <div className="flex-1 h-px bg-[#E5E7EB]" />
-          </div>
-
-          <Button type="button" variant="outline"
-            className="w-full h-12 rounded-xl border-[#E5E7EB] font-semibold text-[#3D2B0E] hover:bg-[#F9FAFB]"
-            onClick={() => base44.auth.loginWithProvider('google')}>
-            Continue with Google
+          <Button
+            type="submit"
+            className="w-full h-12 rounded-xl bg-[#C9A05A] hover:bg-[#B08A45] text-white font-bold text-base mt-6"
+            disabled={loading}
+          >
+            {loading ? 'Creating account...' : 'Create Account'}
           </Button>
         </form>
 
         <p className="text-center mt-6 text-sm text-[#6B7280]">
           Already have an account?{' '}
-          <Link to="/login" className="text-[#C9A05A] font-semibold hover:underline">Sign in</Link>
+          <Link to="/login" className="text-[#C9A05A] font-semibold hover:underline">
+            Sign in
+          </Link>
         </p>
       </div>
     </div>

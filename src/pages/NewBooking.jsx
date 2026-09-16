@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/AuthContext';
 import { useNavigate } from '@tanstack/react-router';
 import { Button } from '@/components/ui/button';
@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { CATEGORIES, calculateFare } from '@/lib/fareUtils';
-import { ArrowLeft, AlertCircle, Check, Loader2 } from 'lucide-react';
+import { ArrowLeft, AlertCircle, Check, Loader2, MapPin } from 'lucide-react';
 import { Link } from '@tanstack/react-router';
 
 export default function NewBooking() {
@@ -27,6 +27,77 @@ export default function NewBooking() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [calculatingDistance, setCalculatingDistance] = useState(false);
+
+  // Auto-calculate distance using Mapbox
+  useEffect(() => {
+    if (form.pickup_address && form.dropoff_address && form.pickup_address !== form.dropoff_address) {
+      calculateDistance();
+    }
+  }, [form.pickup_address, form.dropoff_address]);
+
+  async function calculateDistance() {
+    if (!form.pickup_address.trim() || !form.dropoff_address.trim()) return;
+    
+    setCalculatingDistance(true);
+    try {
+      const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN;
+      if (!mapboxToken) {
+        console.log('Mapbox token not found, using manual entry');
+        setCalculatingDistance(false);
+        return;
+      }
+
+      const pickup = encodeURIComponent(form.pickup_address);
+      const dropoff = encodeURIComponent(form.dropoff_address);
+      
+      const geocodePickup = await fetch(
+        `https://api.mapbox.com/geocoding/v5/mapbox.places/${pickup}.json?country=BW&limit=1&access_token=${mapboxToken}`
+      ).then(r => r.json());
+
+      const geocodeDropoff = await fetch(
+        `https://api.mapbox.com/geocoding/v5/mapbox.places/${dropoff}.json?country=BW&limit=1&access_token=${mapboxToken}`
+      ).then(r => r.json());
+
+      if (geocodePickup.features?.[0] && geocodeDropoff.features?.[0]) {
+        const pickupCoords = geocodePickup.features[0].geometry.coordinates;
+        const dropoffCoords = geocodeDropoff.features[0].geometry.coordinates;
+
+        // Calculate distance using Haversine formula
+        const dist = calculateHaversineDistance(pickupCoords, dropoffCoords);
+        
+        if (dist > 0.5) {
+          setForm(prev => ({
+            ...prev,
+            dropoff_distance_km: parseFloat(dist.toFixed(1))
+          }));
+        }
+      }
+    } catch (err) {
+      console.log('Distance calculation failed, use manual entry');
+    } finally {
+      setCalculatingDistance(false);
+    }
+  }
+
+  function calculateHaversineDistance(coord1, coord2) {
+    const [lon1, lat1] = coord1;
+    const [lon2, lat2] = coord2;
+    
+    const R = 6371; // Earth radius in km
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLon = ((lon2 - lon1) * Math.PI) / 180;
+    
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((lat1 * Math.PI) / 180) *
+        Math.cos((lat2 * Math.PI) / 180) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+    
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }
 
   const distance = parseFloat(form.dropoff_distance_km) || 0;
   const baseFare = form.category ? calculateFare(form.category, distance) : 0;
@@ -80,7 +151,7 @@ export default function NewBooking() {
   }
 
   return (
-    <div className="max-w-lg mx-auto bg-[#F9FAFB] min-h-screen pb-40 md:pb-16">
+    <div className="max-w-lg mx-auto bg-[#F9FAFB] min-h-screen">
       {/* Header */}
       <div className="bg-[#3D2B0E] px-4 pt-10 pb-6 sticky top-0 z-50">
         <div className="flex items-center gap-3">
@@ -114,7 +185,7 @@ export default function NewBooking() {
       )}
 
       {/* Form */}
-      <div className="p-4 space-y-4">
+      <div className="p-4 pb-32 space-y-4">
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Pickup */}
           <div className="bg-white border border-[#E5E7EB] rounded-2xl p-4 shadow-sm">
@@ -178,17 +249,34 @@ export default function NewBooking() {
 
           {/* Distance */}
           <div className="bg-white border border-[#E5E7EB] rounded-2xl p-4 shadow-sm">
-            <Label className="text-xs font-semibold text-[#6B7280] uppercase tracking-wider">Distance (km) *</Label>
-            <Input
-              type="number"
-              min="0.1"
-              step="0.1"
-              className="mt-2 h-12 rounded-xl text-base bg-[#F9FAFB] border-[#E5E7EB]"
-              placeholder="Distance to destination"
-              value={form.dropoff_distance_km}
-              onChange={e => setForm(prev => ({ ...prev, dropoff_distance_km: e.target.value }))}
-              required
-            />
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-semibold text-[#6B7280] uppercase tracking-wider">Distance (km) *</Label>
+              {calculatingDistance && (
+                <span className="text-xs text-[#C9A05A] font-semibold flex items-center gap-1">
+                  <span className="h-2 w-2 bg-[#C9A05A] rounded-full animate-pulse"></span>
+                  Auto-calculating...
+                </span>
+              )}
+            </div>
+            <div className="relative mt-2">
+              <Input
+                type="number"
+                min="0.1"
+                step="0.1"
+                className="h-12 rounded-xl text-base bg-[#F9FAFB] border-[#E5E7EB] pr-10"
+                placeholder="Distance auto-calculated"
+                value={form.dropoff_distance_km}
+                onChange={e => setForm(prev => ({ ...prev, dropoff_distance_km: e.target.value }))}
+                required
+                disabled={calculatingDistance}
+              />
+              {form.dropoff_distance_km && (
+                <MapPin className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-[#C9A05A]" />
+              )}
+            </div>
+            {form.pickup_address && form.dropoff_address && !form.dropoff_distance_km && (
+              <p className="text-xs text-[#6B7280] mt-2">Calculating distance...</p>
+            )}
           </div>
 
           {/* Goods */}
@@ -243,29 +331,31 @@ export default function NewBooking() {
       </div>
 
       {/* CTA Button - Fixed Bottom */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#E5E7EB] px-4 py-3 pb-safe max-w-lg mx-auto shadow-2xl">
-        <Button
-          type="submit"
-          onClick={handleSubmit}
-          disabled={submitting || !isComplete}
-          className={`w-full h-14 text-base font-extrabold rounded-2xl transition-all active:scale-95 ${
-            isComplete
-              ? 'bg-[#C9A05A] hover:bg-[#B08A45] text-white shadow-lg shadow-[#C9A05A]/30'
-              : 'bg-[#E5E7EB] text-[#9CA3AF] cursor-not-allowed'
-          }`}
-        >
-          {submitting ? (
-            <span className="flex items-center justify-center gap-2">
-              <Loader2 className="h-5 w-5 animate-spin" />
-              Broadcasting...
-            </span>
-          ) : (
-            <>
-              <span className="text-lg">📡</span>
-              <span className="ml-2">Broadcast Request — P{offeredFare}</span>
-            </>
-          )}
-        </Button>
+      <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-[#E5E7EB] shadow-2xl">
+        <div className="max-w-lg mx-auto px-4 py-3 pb-safe">
+          <Button
+            type="submit"
+            onClick={handleSubmit}
+            disabled={submitting || !isComplete}
+            className={`w-full h-14 text-base font-extrabold rounded-2xl transition-all active:scale-95 ${
+              isComplete
+                ? 'bg-[#C9A05A] hover:bg-[#B08A45] text-white shadow-lg shadow-[#C9A05A]/30'
+                : 'bg-[#E5E7EB] text-[#9CA3AF] cursor-not-allowed'
+            }`}
+          >
+            {submitting ? (
+              <span className="flex items-center justify-center gap-2">
+                <Loader2 className="h-5 w-5 animate-spin" />
+                Broadcasting...
+              </span>
+            ) : (
+              <>
+                <span className="text-lg">📡</span>
+                <span className="ml-2">Broadcast Request — P{offeredFare}</span>
+              </>
+            )}
+          </Button>
+        </div>
       </div>
     </div>
   );
